@@ -5,8 +5,8 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="clr-namespace:StS2ModManager.ViewModels"
         mc:Ignorable="d"
-        Title="杀戮尖塔2 Mod管理器" Height="700" Width="900"
-        MinHeight="600" MinWidth="800"
+        Title="杀戮尖塔2 Mod管理器" Height="750" Width="950"
+        MinHeight="650" MinWidth="850"
         Background="#F5F5F5"
         WindowStartupLocation="CenterScreen">
 
@@ -103,7 +103,8 @@
                 <StackPanel Orientation="Horizontal">
                     <TextBlock Text="{Binding GamePathStatus}" Foreground="#22C55E" FontSize="12"/>
                     <Button Content="📂 游戏目录" Command="{Binding OpenGameDirectoryCommand}" Margin="16,0,0,0" Padding="8,4"/>
-                    <Button Content="📂 游戏Mods目录" Command="{Binding OpenGameModsDirectoryCommand}" Margin="4,0,0,0" Padding="8,4"/>
+                    <Button Content="📂 游戏Mods" Command="{Binding OpenGameModsDirectoryCommand}" Margin="4,0,0,0" Padding="8,4"/>
+                    <Button Content="📂 工具Mods" Command="{Binding OpenToolModsDirectoryCommand}" Margin="4,0,0,0" Padding="8,4"/>
                 </StackPanel>
             </StackPanel>
         </Border>
@@ -126,9 +127,8 @@
                     </Grid.RowDefinitions>
                     
                     <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
-                        <TextBlock Text="我的mod (在工具目录下)" FontSize="16" FontWeight="Bold"/>
-                        <Button Content="📂" Command="{Binding OpenToolModsDirectoryCommand}" ToolTip="打开Mods目录" Padding="6,2" Margin="8,0,0,0"/>
-                        <Button Content="🔄" Command="{Binding RefreshToolModsCommand}" ToolTip="刷新" Padding="6,2"/>
+                        <TextBlock Text="我的mod (工具目录)" FontSize="16" FontWeight="Bold"/>
+                        <Button Content="🔄" Command="{Binding RefreshToolModsCommand}" ToolTip="刷新" Padding="6,2" Margin="8,0,0,0"/>
                     </StackPanel>
                     
                     <ListBox Grid.Row="1" ItemsSource="{Binding ToolMods}" Background="#FAFAFA" BorderThickness="0">
@@ -166,7 +166,7 @@
                     </Grid.RowDefinitions>
                     
                     <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
-                        <TextBlock Text="游戏mod (在游戏目录下)" FontSize="16" FontWeight="Bold"/>
+                        <TextBlock Text="游戏mod (游戏目录)" FontSize="16" FontWeight="Bold"/>
                         <Button Content="🔄" Command="{Binding RefreshGameModsCommand}" ToolTip="刷新" Padding="6,2" Margin="8,0,0,0"/>
                     </StackPanel>
                     
@@ -194,23 +194,33 @@
                 </Grid.RowDefinitions>
 
                 <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
-                    <TextBlock Text="存档管理" FontSize="16" FontWeight="Bold"/>
+                    <TextBlock Text="存档复制" FontSize="16" FontWeight="Bold"/>
                     <Button Content="📂 打开存档目录" Command="{Binding OpenSavesDirectoryCommand}" Margin="16,0,0,0"/>
                     <Button Content="📂 打开备份目录" Command="{Binding OpenBackupDirectoryCommand}" Margin="8,0,0,0"/>
+                    <Button Content="🔄 刷新" Command="{Binding RefreshSteamIdsCommand}" Margin="8,0,0,0"/>
                 </StackPanel>
 
                 <StackPanel Grid.Row="1" Orientation="Horizontal">
-                    <Button Content="← 用非Mod存档替换" Command="{Binding UseNormalSaveCommand}" Background="#E0E0E0"/>
-                    <Button Content="用Mod存档替换 →" Command="{Binding UseModdedSaveCommand}" Margin="8,0,0,0" Background="#E0E0E0"/>
+                    <TextBlock Text="源Steam ID:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <ComboBox ItemsSource="{Binding SteamIds}" SelectedItem="{Binding SelectedSourceId}" Width="180"/>
+                    <TextBlock Text="→" VerticalAlignment="Center" Margin="16,0"/>
+                    <TextBlock Text="目标Steam ID:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <ComboBox ItemsSource="{Binding SteamIds}" SelectedItem="{Binding SelectedDestId}" Width="180"/>
+                    <Button Content="复制存档" Command="{Binding CopySaveToAnotherCommand}" Margin="16,0,0,0" Background="#7C3AED" Foreground="White" FontWeight="Bold"/>
                 </StackPanel>
             </Grid>
         </Border>
 
         <!-- 游戏启动 -->
         <Border Grid.Row="4" Background="#FFFFFF" CornerRadius="8" Padding="16" Margin="0,0,0,16" BorderBrush="#DDDDDD" BorderThickness="1">
-            <StackPanel Orientation="Horizontal">
-                <Button Content="🎮 启动游戏" Command="{Binding LaunchGameCommand}" FontSize="14" Padding="20,10" Background="#22C55E" Foreground="White"/>
-                <Button Content="🎮 启动游戏(无Mod)" Command="{Binding LaunchGameNoModsCommand}" FontSize="14" Padding="20,10" Margin="16,0,0,0"/>
+            <StackPanel>
+                <TextBlock Text="启动游戏" FontSize="16" FontWeight="Bold" Margin="0,0,0,8"/>
+                <WrapPanel>
+                    <Button Content="🎮 直接启动" Command="{Binding LaunchGameCommand}" Padding="16,8"/>
+                    <Button Content="🎮 直接启动(无Mod)" Command="{Binding LaunchGameNoModsCommand}" Padding="16,8" Margin="8,0,0,0"/>
+                    <Button Content="🔵 Steam启动" Command="{Binding LaunchGameViaSteamCommand}" Padding="16,8" Margin="16,0,0,0"/>
+                    <Button Content="🔵 Steam启动(无Mod)" Command="{Binding LaunchGameViaSteamNoModsCommand}" Padding="16,8" Margin="8,0,0,0"/>
+                </WrapPanel>
             </StackPanel>
         </Border>
 

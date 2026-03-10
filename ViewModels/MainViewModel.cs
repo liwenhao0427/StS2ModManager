@@ -31,6 +31,15 @@ public partial class MainViewModel : ObservableObject
     private ObservableCollection<ModInfo> _gameMods = new();
 
     [ObservableProperty]
+    private ObservableCollection<string> _steamIds = new();
+
+    [ObservableProperty]
+    private string? _selectedSourceId;
+
+    [ObservableProperty]
+    private string? _selectedDestId;
+
+    [ObservableProperty]
     private string _statusMessage = "就绪";
 
     [ObservableProperty]
@@ -64,6 +73,7 @@ public partial class MainViewModel : ObservableObject
         }
 
         RefreshToolMods();
+        RefreshSteamIds();
 
         StatusMessage = DetectedPaths.Count > 0 ? $"已找到 {DetectedPaths.Count} 个游戏路径" : "未找到游戏，请手动选择";
     }
@@ -186,6 +196,17 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private void RefreshSteamIds()
+    {
+        SteamIds.Clear();
+        var ids = _saveService.GetAllSteamIds();
+        foreach (var id in ids)
+        {
+            SteamIds.Add(id);
+        }
+    }
+
+    [RelayCommand]
     private void ApplyMods()
     {
         if (string.IsNullOrEmpty(SelectedPath))
@@ -274,82 +295,41 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void SetModAlias()
+    private void CopySaveToAnother()
     {
-        if (SelectedModForAlias == null) return;
-
-        if (string.IsNullOrWhiteSpace(ModAliasInput))
+        if (string.IsNullOrEmpty(SelectedSourceId) || string.IsNullOrEmpty(SelectedDestId))
         {
-            _modService.SetAlias(SelectedModForAlias.FileName, string.Empty);
-        }
-        else
-        {
-            _modService.SetAlias(SelectedModForAlias.FileName, ModAliasInput);
+            MessageBox.Show("请选择源和目标Steam ID", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
         }
 
-        SelectedModForAlias.DisplayName = _modService.GetDisplayName(SelectedModForAlias.FileName);
-        RefreshToolMods();
-        ModAliasInput = string.Empty;
-        SelectedModForAlias = null;
-        StatusMessage = "别名已设置";
-    }
+        if (SelectedSourceId == SelectedDestId)
+        {
+            MessageBox.Show("源和目标不能相同", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
 
-    [RelayCommand]
-    private void UseNormalSave()
-    {
         var result = MessageBox.Show(
-            "⚠️ 确认用非Mod存档替换当前存档？\n\n" +
-            "操作: 将非Mod存档目录下的所有文件复制到Mod存档目录\n\n" +
-            "这是什么意思？\n" +
-            "→ 你在Mod模式下玩的存档会被删除，替换成没有使用Mod的存档。\n\n" +
+            $"⚠️ 确认复制存档？\n\n" +
+            $"操作: 将 {SelectedSourceId} 目录下的所有内容\n复制到 {SelectedDestId} 目录（先删除目标目录）\n\n" +
             "⚠️ 风险提示:\n" +
-            "替换后，你在Mod中打的所有进度将会丢失！\n" +
-            "替换前已自动备份到: Backup/Saves/\n如需恢复，请手动从备份目录恢复。\n\n" +
-            "是否确认替换？",
-            "确认替换",
+            $"目标目录 {SelectedDestId} 的所有存档将被覆盖！\n" +
+            "操作前已自动备份到: Backup/Saves/\n如需恢复，请手动从备份目录恢复。\n\n" +
+            "是否确认操作？",
+            "确认复制",
             MessageBoxButton.YesNo,
             MessageBoxImage.Warning
         );
 
         if (result == MessageBoxResult.Yes)
         {
-            if (_saveService.CopyNormalToModded())
+            if (_saveService.CopySteamIdToAnother(SelectedSourceId, SelectedDestId))
             {
-                MessageBox.Show("操作成功！已使用非Mod存档", "成功", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show("存档复制成功！", "成功", MessageBoxButton.OK, MessageBoxImage.Information);
             }
             else
             {
-                MessageBox.Show("操作失败，可能没有非Mod存档", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-    }
-
-    [RelayCommand]
-    private void UseModdedSave()
-    {
-        var result = MessageBox.Show(
-            "⚠️ 确认用Mod存档替换当前存档？\n\n" +
-            "操作: 将Mod存档目录下的所有文件复制到非Mod存档目录\n\n" +
-            "这是什么意思？\n" +
-            "→ 你在不带Mod情况下打的存档会被删除，替换成使用Mod的存档。\n\n" +
-            "⚠️ 风险提示:\n" +
-            "替换后，你在普通模式下打的所有进度将会丢失！\n" +
-            "替换前已自动备份到: Backup/Saves/\n如需恢复，请手动从备份目录恢复。\n\n" +
-            "是否确认替换？",
-            "确认替换",
-            MessageBoxButton.YesNo,
-            MessageBoxImage.Warning
-        );
-
-        if (result == MessageBoxResult.Yes)
-        {
-            if (_saveService.CopyModdedToNormal())
-            {
-                MessageBox.Show("操作成功！已使用Mod存档", "成功", MessageBoxButton.OK, MessageBoxImage.Information);
-            }
-            else
-            {
-                MessageBox.Show("操作失败，可能没有Mod存档", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show("存档复制失败，请检查Steam ID是否正确", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
     }
@@ -395,6 +375,32 @@ public partial class MainViewModel : ObservableObject
         else
         {
             MessageBox.Show("启动游戏失败，请检查游戏路径", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    [RelayCommand]
+    private void LaunchGameViaSteam()
+    {
+        if (_launchService.LaunchGameViaSteam())
+        {
+            StatusMessage = "已通过Steam启动游戏";
+        }
+        else
+        {
+            MessageBox.Show("通过Steam启动失败，请确保Steam已安装", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    [RelayCommand]
+    private void LaunchGameViaSteamNoMods()
+    {
+        if (_launchService.LaunchGameViaSteamNoMods())
+        {
+            StatusMessage = "已通过Steam启动游戏(无Mod)";
+        }
+        else
+        {
+            MessageBox.Show("通过Steam启动失败，请确保Steam已安装", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 
