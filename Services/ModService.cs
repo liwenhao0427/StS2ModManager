@@ -1,5 +1,4 @@
 using System.IO;
-using System.Text.Json;
 using StS2ModManager.Models;
 
 namespace StS2ModManager.Services;
@@ -7,83 +6,191 @@ namespace StS2ModManager.Services;
 public class ModService
 {
     private readonly GamePathService _pathService;
-    private Dictionary<string, string> _aliases = new();
+    private readonly SettingsService _settingsService;
+    private AppSettings _settings;
 
-    public ModService(GamePathService pathService)
+    public ModService(GamePathService pathService, SettingsService settingsService)
     {
         _pathService = pathService;
-        LoadAliases();
+        _settingsService = settingsService;
+        _settings = _settingsService.Load();
     }
 
-    private void LoadAliases()
+    public AppSettings Settings => _settings;
+
+    public void SaveSettings()
     {
-        try
+        _settingsService.Save(_settings);
+    }
+
+    public List<ModSourceInfo> BuildModSources(string? gamePath)
+    {
+        var sources = new List<ModSourceInfo>
         {
-            if (File.Exists(GamePathService.AliasesFile))
+            new()
             {
-                var json = File.ReadAllText(GamePathService.AliasesFile);
-                _aliases = JsonSerializer.Deserialize<Dictionary<string, string>>(json) ?? new();
+                Name = "工具Mods",
+                Path = GamePathService.ToolModsDir,
+                IsSystem = true
+            }
+        };
+
+        foreach (var dir in _settings.CustomModSourceDirs)
+        {
+            if (Directory.Exists(dir))
+            {
+                sources.Add(new ModSourceInfo
+                {
+                    Name = Path.GetFileName(dir),
+                    Path = dir,
+                    IsSystem = false
+                });
             }
         }
-        catch
+
+        if (!string.IsNullOrWhiteSpace(gamePath))
         {
-            _aliases = new();
+            var pendingPath = _pathService.GetGamePendingModsDir(gamePath);
+            Directory.CreateDirectory(pendingPath);
+            sources.Add(new ModSourceInfo
+            {
+                Name = "游戏待生效",
+                Path = pendingPath,
+                IsSystem = true
+            });
         }
+
+        return sources
+            .GroupBy(s => s.Path, StringComparer.OrdinalIgnoreCase)
+            .Select(g => g.First())
+            .ToList();
     }
 
-    public void SaveAliases()
+    public bool AddCustomModSource(string path)
     {
-        try
+        if (!Directory.Exists(path))
         {
-            var json = JsonSerializer.Serialize(_aliases, new JsonSerializerOptions { WriteIndented = true });
-            File.WriteAllText(GamePathService.AliasesFile, json);
+            return false;
         }
-        catch { }
+
+        if (_settings.CustomModSourceDirs.Any(x => string.Equals(x, path, StringComparison.OrdinalIgnoreCase)))
+        {
+            return false;
+        }
+
+        _settings.CustomModSourceDirs.Add(path);
+        SaveSettings();
+        return true;
     }
 
-    public void SetAlias(string fileName, string alias)
+    public void RemoveCustomModSource(string path)
     {
+        _settings.CustomModSourceDirs = _settings.CustomModSourceDirs
+            .Where(x => !string.Equals(x, path, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        SaveSettings();
+    }
+
+    public void SetAlias(string modKey, string alias)
+    {
+        if (string.IsNullOrWhiteSpace(modKey))
+        {
+            return;
+        }
+
         if (string.IsNullOrWhiteSpace(alias))
-            _aliases.Remove(fileName);
+        {
+            _settings.ModAliases.Remove(modKey);
+        }
         else
-            _aliases[fileName] = alias;
-        SaveAliases();
+        {
+            _settings.ModAliases[modKey] = alias.Trim();
+        }
+
+        SaveSettings();
     }
 
-    public string GetDisplayName(string fileName)
+    public string GetDisplayName(string modKey, string folderName)
     {
-        return _aliases.TryGetValue(fileName, out var alias) ? alias : fileName;
+        if (_settings.ModAliases.TryGetValue(modKey, out var alias) && !string.IsNullOrWhiteSpace(alias))
+        {
+            return alias;
+        }
+
+        return folderName;
     }
 
-    public List<ModInfo> ScanToolMods()
+    public List<ModInfo> ScanModsFromSources(IEnumerable<ModSourceInfo> sources)
     {
-        return ScanModsDirectory(GamePathService.ToolModsDir, false);
+        var mods = new List<ModInfo>();
+        foreach (var source in sources)
+        {
+            mods.AddRange(ScanSingleSource(source, false));
+        }
+
+        return mods
+            .OrderBy(x => x.DisplayName, StringComparer.OrdinalIgnoreCase)
+            .ToList();
     }
 
     public List<ModInfo> ScanGameMods(string gamePath)
     {
         var gameModsPath = _pathService.GetGameModsDir(gamePath);
-        if (gameModsPath == null) return new List<ModInfo>();
-        return ScanModsDirectory(gameModsPath, true);
+        if (string.IsNullOrWhiteSpace(gameModsPath) || !Directory.Exists(gameModsPath))
+        {
+            return new List<ModInfo>();
+        }
+
+        var source = new ModSourceInfo
+        {
+            Name = "游戏生效目录",
+            Path = gameModsPath,
+            IsSystem = true
+        };
+
+        return ScanSingleSource(source, true)
+            .OrderBy(x => x.DisplayName, StringComparer.OrdinalIgnoreCase)
+            .ToList();
     }
 
-    private List<ModInfo> ScanModsDirectory(string modsPath, bool isFromGameDir)
+    private List<ModInfo> ScanSingleSource(ModSourceInfo source, bool isFromGameDir)
     {
         var mods = new List<ModInfo>();
-        if (!Directory.Exists(modsPath)) return mods;
-
-        foreach (var file in Directory.GetFiles(modsPath, "*.pck", SearchOption.AllDirectories))
+        if (!Directory.Exists(source.Path))
         {
-            var fileInfo = new FileInfo(file);
-            var fileName = Path.GetFileName(file);
+            return mods;
+        }
+
+        foreach (var folder in Directory.GetDirectories(source.Path, "*", SearchOption.TopDirectoryOnly))
+        {
+            var folderName = Path.GetFileName(folder);
+            if (string.IsNullOrWhiteSpace(folderName))
+            {
+                continue;
+            }
+
+            var hasPck = Directory.GetFiles(folder, "*.pck", SearchOption.AllDirectories).Length > 0;
+            var hasDll = Directory.GetFiles(folder, "*.dll", SearchOption.AllDirectories).Length > 0;
+            if (!hasPck || !hasDll)
+            {
+                continue;
+            }
+
+            var lastWrite = Directory.GetLastWriteTime(folder);
+            var size = CalculateDirectorySize(folder);
+            var modKey = folderName;
             mods.Add(new ModInfo
             {
-                FileName = fileName,
-                DisplayName = GetDisplayName(fileName),
-                FullPath = file,
-                Size = fileInfo.Length,
-                ModifiedTime = fileInfo.LastWriteTime,
-                IsFromGameDir = isFromGameDir
+                ModKey = modKey,
+                FolderName = folderName,
+                FolderPath = folder,
+                SourcePath = source.Path,
+                SourceName = source.Name,
+                DisplayName = GetDisplayName(modKey, folderName),
+                Size = size,
+                ModifiedTime = lastWrite,
+                IsFromGameDir = isFromGameDir,
+                IsEnabled = true
             });
         }
 
@@ -93,8 +200,10 @@ public class ModService
     public string BackupGameMods(string gamePath)
     {
         var gameModsPath = _pathService.GetGameModsDir(gamePath);
-        if (gameModsPath == null || !Directory.Exists(gameModsPath))
+        if (string.IsNullOrWhiteSpace(gameModsPath) || !Directory.Exists(gameModsPath))
+        {
             return string.Empty;
+        }
 
         var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
         var backupPath = Path.Combine(GamePathService.BackupDir, "Mods", timestamp);
@@ -110,57 +219,121 @@ public class ModService
         }
     }
 
-    public void ApplyMods(string gamePath, List<ModInfo> enabledMods)
+    public int ApplyMods(string gamePath, IReadOnlyCollection<ModInfo> enabledMods)
     {
         var gameModsPath = _pathService.GetGameModsDir(gamePath);
-        if (gameModsPath == null) return;
+        if (string.IsNullOrWhiteSpace(gameModsPath))
+        {
+            return 0;
+        }
 
-        // 备份现有Mods
+        Directory.CreateDirectory(gameModsPath);
         BackupGameMods(gamePath);
 
-        // 清空游戏Mods目录
-        foreach (var file in Directory.GetFiles(gameModsPath, "*.pck", SearchOption.AllDirectories))
+        foreach (var dir in Directory.GetDirectories(gameModsPath))
+        {
+            Directory.Delete(dir, true);
+        }
+
+        foreach (var file in Directory.GetFiles(gameModsPath))
         {
             File.Delete(file);
         }
 
-        // 复制选中的Mods
+        var copiedCount = 0;
         foreach (var mod in enabledMods)
         {
-            var destPath = Path.Combine(gameModsPath, mod.FileName);
-            if (File.Exists(mod.FullPath) && mod.FullPath != destPath)
+            if (!Directory.Exists(mod.FolderPath))
             {
-                File.Copy(mod.FullPath, destPath, true);
+                continue;
             }
+
+            var targetPath = Path.Combine(gameModsPath, mod.FolderName);
+            if (Directory.Exists(targetPath))
+            {
+                Directory.Delete(targetPath, true);
+            }
+
+            CopyDirectory(mod.FolderPath, targetPath);
+            copiedCount++;
         }
+
+        return copiedCount;
     }
 
-    public void RemoveModsToTool(string gamePath)
+    public int RemoveModsToTool(string gamePath)
     {
         var gameModsPath = _pathService.GetGameModsDir(gamePath);
-        if (gameModsPath == null || !Directory.Exists(gameModsPath)) return;
-
-        // 复制游戏Mods到工具目录
-        foreach (var file in Directory.GetFiles(gameModsPath, "*.pck", SearchOption.AllDirectories))
+        if (string.IsNullOrWhiteSpace(gameModsPath) || !Directory.Exists(gameModsPath))
         {
-            var fileName = Path.GetFileName(file);
-            var destPath = Path.Combine(GamePathService.ToolModsDir, fileName);
-            File.Copy(file, destPath, true);
+            return 0;
         }
+
+        Directory.CreateDirectory(GamePathService.ToolModsDir);
+
+        var count = 0;
+        foreach (var folder in Directory.GetDirectories(gameModsPath, "*", SearchOption.TopDirectoryOnly))
+        {
+            var folderName = Path.GetFileName(folder);
+            var target = Path.Combine(GamePathService.ToolModsDir, folderName);
+            if (Directory.Exists(target))
+            {
+                Directory.Delete(target, true);
+            }
+
+            CopyDirectory(folder, target);
+            count++;
+        }
+
+        return count;
     }
 
-    private void CopyDirectory(string src, string dest)
+    public bool MoveGameModToPending(string gamePath, ModInfo mod)
     {
-        Directory.CreateDirectory(dest);
-        foreach (var file in Directory.GetFiles(src))
+        var gameModsPath = _pathService.GetGameModsDir(gamePath);
+        if (string.IsNullOrWhiteSpace(gameModsPath))
         {
-            var destFile = Path.Combine(dest, Path.GetFileName(file));
-            File.Copy(file, destFile, true);
+            return false;
         }
-        foreach (var dir in Directory.GetDirectories(src))
+
+        var sourceFolder = Path.Combine(gameModsPath, mod.FolderName);
+        if (!Directory.Exists(sourceFolder))
         {
-            var destDir = Path.Combine(dest, Path.GetFileName(dir));
-            CopyDirectory(dir, destDir);
+            return false;
+        }
+
+        var pendingPath = _pathService.GetGamePendingModsDir(gamePath);
+        Directory.CreateDirectory(pendingPath);
+        var targetFolder = Path.Combine(pendingPath, mod.FolderName);
+        if (Directory.Exists(targetFolder))
+        {
+            Directory.Delete(targetFolder, true);
+        }
+
+        Directory.Move(sourceFolder, targetFolder);
+        return true;
+    }
+
+    private static long CalculateDirectorySize(string folder)
+    {
+        return Directory
+            .GetFiles(folder, "*", SearchOption.AllDirectories)
+            .Sum(file => new FileInfo(file).Length);
+    }
+
+    private static void CopyDirectory(string source, string destination)
+    {
+        Directory.CreateDirectory(destination);
+        foreach (var file in Directory.GetFiles(source))
+        {
+            var targetFile = Path.Combine(destination, Path.GetFileName(file));
+            File.Copy(file, targetFile, true);
+        }
+
+        foreach (var directory in Directory.GetDirectories(source))
+        {
+            var targetDir = Path.Combine(destination, Path.GetFileName(directory));
+            CopyDirectory(directory, targetDir);
         }
     }
 }

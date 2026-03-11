@@ -25,7 +25,16 @@ public partial class MainViewModel : ObservableObject
     private string _gamePathStatus = "未选择";
 
     [ObservableProperty]
+    private ObservableCollection<ModSourceInfo> _modSources = new();
+
+    [ObservableProperty]
+    private ModSourceInfo? _selectedModSource;
+
+    [ObservableProperty]
     private ObservableCollection<ModInfo> _toolMods = new();
+
+    [ObservableProperty]
+    private ModInfo? _selectedToolMod;
 
     [ObservableProperty]
     private ObservableCollection<ModInfo> _gameMods = new();
@@ -34,53 +43,74 @@ public partial class MainViewModel : ObservableObject
     private ObservableCollection<string> _steamIds = new();
 
     [ObservableProperty]
-    private string? _selectedSourceId;
+    private string? _selectedSteamId;
 
     [ObservableProperty]
-    private string? _selectedDestId;
+    private ObservableCollection<SaveOptionItem> _saveDirections = new();
+
+    [ObservableProperty]
+    private SaveOptionItem? _selectedSaveDirection;
+
+    [ObservableProperty]
+    private ObservableCollection<SaveOptionItem> _saveSlots = new();
+
+    [ObservableProperty]
+    private SaveOptionItem? _selectedSaveSlot;
+
+    [ObservableProperty]
+    private string _aliasInput = string.Empty;
 
     [ObservableProperty]
     private string _statusMessage = "就绪";
 
-    [ObservableProperty]
-    private string _modAliasInput = string.Empty;
-
-    [ObservableProperty]
-    private ModInfo? _selectedModForAlias;
-
     public MainViewModel()
     {
         _pathService = new GamePathService();
-        _modService = new ModService(_pathService);
-        _saveService = new SaveService(_pathService);
+        var settingsService = new SettingsService();
+        _modService = new ModService(_pathService, settingsService);
+        _saveService = new SaveService();
         _launchService = new GameLaunchService();
 
         GamePathService.EnsureDirectoriesExist();
+        InitializeSaveOptions();
         Initialize();
     }
 
     private void Initialize()
     {
-        var paths = _pathService.DetectGamePaths();
-        foreach (var path in paths)
-        {
-            DetectedPaths.Add(path);
-        }
-
-        if (DetectedPaths.Count > 0)
-        {
-            SelectedPath = DetectedPaths[0];
-        }
-
-        RefreshToolMods();
+        RefreshPaths();
         RefreshSteamIds();
+        RefreshModSources();
+        RefreshToolMods();
 
         StatusMessage = DetectedPaths.Count > 0 ? $"已找到 {DetectedPaths.Count} 个游戏路径" : "未找到游戏，请手动选择";
     }
 
+    private void InitializeSaveOptions()
+    {
+        SaveDirections = new ObservableCollection<SaveOptionItem>
+        {
+            new() { Key = "mod_to_normal", Label = "Mod存档 -> 非Mod存档" },
+            new() { Key = "normal_to_mod", Label = "非Mod存档 -> Mod存档" }
+        };
+
+        SaveSlots = new ObservableCollection<SaveOptionItem>
+        {
+            new() { Key = "1", Label = "栏位1" },
+            new() { Key = "2", Label = "栏位2" },
+            new() { Key = "3", Label = "栏位3" },
+            new() { Key = "all", Label = "全部栏位" }
+        };
+
+        SelectedSaveDirection = SaveDirections[0];
+        var savedSlot = _modService.Settings.PreferredSaveSlot;
+        SelectedSaveSlot = SaveSlots.FirstOrDefault(x => string.Equals(x.Key, savedSlot, StringComparison.OrdinalIgnoreCase))
+            ?? SaveSlots[0];
+    }
+
     partial void OnSelectedPathChanged(string? value)
     {
-        if (string.IsNullOrEmpty(value))
+        if (string.IsNullOrWhiteSpace(value))
         {
             GamePathStatus = "未选择";
             return;
@@ -89,12 +119,35 @@ public partial class MainViewModel : ObservableObject
         if (_pathService.IsValidGamePath(value))
         {
             GamePathStatus = "✓ 已找到";
+            RefreshModSources();
+            RefreshToolMods();
             RefreshGameMods();
+            return;
         }
-        else
+
+        GamePathStatus = "✗ 无效路径";
+    }
+
+    partial void OnSelectedToolModChanged(ModInfo? value)
+    {
+        AliasInput = value?.DisplayName ?? string.Empty;
+    }
+
+    partial void OnSelectedSteamIdChanged(string? value)
+    {
+        _modService.Settings.PreferredSteamId = value;
+        _modService.SaveSettings();
+    }
+
+    partial void OnSelectedSaveSlotChanged(SaveOptionItem? value)
+    {
+        if (value == null)
         {
-            GamePathStatus = "✗ 无效路径";
+            return;
         }
+
+        _modService.Settings.PreferredSaveSlot = value.Key;
+        _modService.SaveSettings();
     }
 
     [RelayCommand]
@@ -106,6 +159,12 @@ public partial class MainViewModel : ObservableObject
         {
             DetectedPaths.Add(path);
         }
+
+        if (DetectedPaths.Count > 0 && (SelectedPath == null || !DetectedPaths.Contains(SelectedPath)))
+        {
+            SelectedPath = DetectedPaths[0];
+        }
+
         StatusMessage = $"已刷新，找到 {paths.Count} 个路径";
     }
 
@@ -117,27 +176,29 @@ public partial class MainViewModel : ObservableObject
             Title = "选择游戏目录"
         };
 
-        if (dialog.ShowDialog() == true)
+        if (dialog.ShowDialog() != true)
         {
-            if (_pathService.IsValidGamePath(dialog.FolderName))
-            {
-                if (!DetectedPaths.Contains(dialog.FolderName))
-                {
-                    DetectedPaths.Add(dialog.FolderName);
-                }
-                SelectedPath = dialog.FolderName;
-            }
-            else
-            {
-                MessageBox.Show("选择的目录不是有效的游戏目录", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
-            }
+            return;
         }
+
+        if (!_pathService.IsValidGamePath(dialog.FolderName))
+        {
+            MessageBox.Show("选择的目录不是有效的游戏目录", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        if (!DetectedPaths.Contains(dialog.FolderName))
+        {
+            DetectedPaths.Add(dialog.FolderName);
+        }
+
+        SelectedPath = dialog.FolderName;
     }
 
     [RelayCommand]
     private void OpenGameDirectory()
     {
-        if (string.IsNullOrEmpty(SelectedPath))
+        if (string.IsNullOrWhiteSpace(SelectedPath))
         {
             MessageBox.Show("请先选择游戏路径", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
@@ -152,31 +213,118 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void OpenGameModsDirectory()
     {
-        if (string.IsNullOrEmpty(SelectedPath))
+        if (string.IsNullOrWhiteSpace(SelectedPath))
         {
             MessageBox.Show("请先选择游戏路径", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
 
-        var modsPath = _pathService.GetGameModsDir(SelectedPath);
-        if (modsPath != null && Directory.Exists(modsPath))
+        var modsPath = _pathService.GetGameModsDir(SelectedPath) ?? Path.Combine(SelectedPath, "mods");
+        Directory.CreateDirectory(modsPath);
+        System.Diagnostics.Process.Start("explorer.exe", modsPath);
+    }
+
+    [RelayCommand]
+    private void OpenPendingModsDirectory()
+    {
+        if (string.IsNullOrWhiteSpace(SelectedPath))
         {
-            System.Diagnostics.Process.Start("explorer.exe", modsPath);
+            MessageBox.Show("请先选择游戏路径", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
         }
-        else
+
+        var pendingPath = _pathService.GetGamePendingModsDir(SelectedPath);
+        Directory.CreateDirectory(pendingPath);
+        System.Diagnostics.Process.Start("explorer.exe", pendingPath);
+    }
+
+    [RelayCommand]
+    private void OpenToolModsDirectory()
+    {
+        Directory.CreateDirectory(GamePathService.ToolModsDir);
+        System.Diagnostics.Process.Start("explorer.exe", GamePathService.ToolModsDir);
+    }
+
+    [RelayCommand]
+    private void AddModSource()
+    {
+        var dialog = new Microsoft.Win32.OpenFolderDialog
         {
-            MessageBox.Show("游戏Mods目录不存在", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+            Title = "选择Mod来源目录"
+        };
+
+        if (dialog.ShowDialog() != true)
+        {
+            return;
         }
+
+        if (_modService.AddCustomModSource(dialog.FolderName))
+        {
+            RefreshModSources();
+            RefreshToolMods();
+            StatusMessage = "已添加自定义Mod目录";
+            return;
+        }
+
+        MessageBox.Show("目录无效或已存在", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+    }
+
+    [RelayCommand]
+    private void RemoveModSource()
+    {
+        if (SelectedModSource == null)
+        {
+            MessageBox.Show("请先选中要移除的来源目录", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        if (SelectedModSource.IsSystem)
+        {
+            MessageBox.Show("系统目录不能移除", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        _modService.RemoveCustomModSource(SelectedModSource.Path);
+        RefreshModSources();
+        RefreshToolMods();
+        StatusMessage = "已移除自定义Mod目录";
+    }
+
+    [RelayCommand]
+    private void OpenSelectedModSource()
+    {
+        if (SelectedModSource == null)
+        {
+            return;
+        }
+
+        if (Directory.Exists(SelectedModSource.Path))
+        {
+            System.Diagnostics.Process.Start("explorer.exe", SelectedModSource.Path);
+        }
+    }
+
+    [RelayCommand]
+    private void RefreshModSources()
+    {
+        ModSources.Clear();
+        var sources = _modService.BuildModSources(SelectedPath);
+        foreach (var source in sources)
+        {
+            ModSources.Add(source);
+        }
+
+        SelectedModSource = ModSources.FirstOrDefault();
     }
 
     [RelayCommand]
     private void RefreshToolMods()
     {
         ToolMods.Clear();
-        var mods = _modService.ScanToolMods();
+        var mods = _modService.ScanModsFromSources(ModSources);
         foreach (var mod in mods)
         {
-            mod.DisplayName = _modService.GetDisplayName(mod.FileName);
+            mod.IsEnabled = false;
             ToolMods.Add(mod);
         }
     }
@@ -184,7 +332,10 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void RefreshGameMods()
     {
-        if (string.IsNullOrEmpty(SelectedPath)) return;
+        if (string.IsNullOrWhiteSpace(SelectedPath))
+        {
+            return;
+        }
 
         GameMods.Clear();
         var mods = _modService.ScanGameMods(SelectedPath);
@@ -196,38 +347,66 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void RefreshSteamIds()
+    private void OpenModFolder(ModInfo? mod)
     {
-        SteamIds.Clear();
-        var ids = _saveService.GetAllSteamIds();
-        foreach (var id in ids)
+        if (mod == null || !Directory.Exists(mod.FolderPath))
         {
-            SteamIds.Add(id);
+            return;
         }
+
+        System.Diagnostics.Process.Start("explorer.exe", mod.FolderPath);
+    }
+
+    [RelayCommand]
+    private void SaveAlias()
+    {
+        if (SelectedToolMod == null)
+        {
+            MessageBox.Show("请先在左侧列表选中一个Mod", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        _modService.SetAlias(SelectedToolMod.ModKey, AliasInput);
+        RefreshToolMods();
+        StatusMessage = "备注名已保存";
+    }
+
+    [RelayCommand]
+    private void ClearAlias()
+    {
+        if (SelectedToolMod == null)
+        {
+            return;
+        }
+
+        _modService.SetAlias(SelectedToolMod.ModKey, string.Empty);
+        AliasInput = SelectedToolMod.FolderName;
+        RefreshToolMods();
+        StatusMessage = "备注名已清除";
     }
 
     [RelayCommand]
     private void ApplyMods()
     {
-        if (string.IsNullOrEmpty(SelectedPath))
+        if (string.IsNullOrWhiteSpace(SelectedPath))
         {
             MessageBox.Show("请先选择游戏路径", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
 
-        var enabledMods = ToolMods.Where(m => m.IsEnabled).ToList();
+        var enabledMods = ToolMods.Where(x => x.IsEnabled).ToList();
         if (enabledMods.Count == 0)
         {
-            MessageBox.Show("请至少选择一个Mod", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show("请先在左侧勾选至少一个Mod", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
 
         try
         {
-            _modService.ApplyMods(SelectedPath, enabledMods);
+            var count = _modService.ApplyMods(SelectedPath, enabledMods);
             RefreshGameMods();
-            StatusMessage = $"已应用 {enabledMods.Count} 个Mod";
-            MessageBox.Show($"Mod应用成功！\n已启用 {enabledMods.Count} 个Mod", "成功", MessageBoxButton.OK, MessageBoxImage.Information);
+            StatusMessage = $"已应用 {count} 个Mod";
+            MessageBox.Show($"应用完成，已生效 {count} 个Mod。", "成功", MessageBoxButton.OK, MessageBoxImage.Information);
         }
         catch (Exception ex)
         {
@@ -238,7 +417,7 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void RemoveMods()
     {
-        if (string.IsNullOrEmpty(SelectedPath))
+        if (string.IsNullOrWhiteSpace(SelectedPath))
         {
             MessageBox.Show("请先选择游戏路径", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
@@ -246,33 +425,49 @@ public partial class MainViewModel : ObservableObject
 
         if (GameMods.Count == 0)
         {
-            MessageBox.Show("游戏目录下没有Mod可取出", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show("当前没有可取出的生效Mod", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
 
-        var result = MessageBox.Show(
-            $"确认将 {GameMods.Count} 个Mod从游戏目录取出到工具目录？\n\n" +
-            "操作: 将游戏Mods目录下的所有Mod复制到工具Mods目录\n" +
-            "游戏目录下的Mod不会被删除",
-            "确认取出",
-            MessageBoxButton.YesNo,
-            MessageBoxImage.Question
-        );
-
-        if (result == MessageBoxResult.Yes)
+        try
         {
-            try
+            var count = _modService.RemoveModsToTool(SelectedPath);
+            RefreshToolMods();
+            StatusMessage = $"已取出 {count} 个Mod到工具目录";
+            MessageBox.Show($"取出完成，共复制 {count} 个Mod。", "成功", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"取出失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    [RelayCommand]
+    private void ToggleGameMod(ModInfo? mod)
+    {
+        if (mod == null || mod.IsEnabled || string.IsNullOrWhiteSpace(SelectedPath))
+        {
+            return;
+        }
+
+        try
+        {
+            if (_modService.MoveGameModToPending(SelectedPath, mod))
             {
-                _modService.RemoveModsToTool(SelectedPath);
+                RefreshModSources();
                 RefreshToolMods();
                 RefreshGameMods();
-                StatusMessage = $"已取出 {GameMods.Count} 个Mod到工具目录";
-                MessageBox.Show($"Mod取出成功！", "成功", MessageBoxButton.OK, MessageBoxImage.Information);
+                StatusMessage = $"已移出 {mod.DisplayName} 到待生效目录";
+                return;
             }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"取出Mod失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
+
+            mod.IsEnabled = true;
+            MessageBox.Show("移出失败，未找到对应Mod目录", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+        catch (Exception ex)
+        {
+            mod.IsEnabled = true;
+            MessageBox.Show($"移出失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 
@@ -295,43 +490,79 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void CopySaveToAnother()
+    private void RefreshSteamIds()
     {
-        if (string.IsNullOrEmpty(SelectedSourceId) || string.IsNullOrEmpty(SelectedDestId))
+        SteamIds.Clear();
+        var ids = _saveService.GetAllSteamIds();
+        foreach (var id in ids)
         {
-            MessageBox.Show("请选择源和目标Steam ID", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+            SteamIds.Add(id);
+        }
+
+        var preferredId = _modService.Settings.PreferredSteamId;
+        var latestId = _saveService.GetLatestSteamId();
+        if (!string.IsNullOrWhiteSpace(preferredId) && SteamIds.Contains(preferredId))
+        {
+            SelectedSteamId = preferredId;
+        }
+        else
+        {
+            SelectedSteamId = latestId;
+        }
+    }
+
+    [RelayCommand]
+    private void CopySave()
+    {
+        if (string.IsNullOrWhiteSpace(SelectedSteamId))
+        {
+            MessageBox.Show("未找到可用Steam ID", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
 
-        if (SelectedSourceId == SelectedDestId)
+        if (SelectedSaveDirection == null || SelectedSaveSlot == null)
         {
-            MessageBox.Show("源和目标不能相同", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show("请选择复制方向和栏位", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
 
-        var result = MessageBox.Show(
+        var direction = SelectedSaveDirection.Key == "normal_to_mod"
+            ? SaveCopyDirection.NormalToModded
+            : SaveCopyDirection.ModdedToNormal;
+
+        var directionText = direction == SaveCopyDirection.NormalToModded
+            ? "非Mod -> Mod"
+            : "Mod -> 非Mod";
+        var slotText = SelectedSaveSlot.Label;
+
+        var confirmResult = MessageBox.Show(
             $"⚠️ 确认复制存档？\n\n" +
-            $"操作: 将 {SelectedSourceId} 目录下的所有内容\n复制到 {SelectedDestId} 目录（先删除目标目录）\n\n" +
-            "⚠️ 风险提示:\n" +
-            $"目标目录 {SelectedDestId} 的所有存档将被覆盖！\n" +
-            "操作前已自动备份到: Backup/Saves/\n如需恢复，请手动从备份目录恢复。\n\n" +
-            "是否确认操作？",
+            $"Steam ID: {SelectedSteamId}\n" +
+            $"方向: {directionText}\n" +
+            $"栏位: {slotText}\n\n" +
+            "操作将覆盖目标栏位，复制前会自动备份。\n" +
+            "备份目录: Backup/Saves/时间戳\n\n" +
+            "是否继续？",
             "确认复制",
             MessageBoxButton.YesNo,
-            MessageBoxImage.Warning
-        );
+            MessageBoxImage.Warning);
 
-        if (result == MessageBoxResult.Yes)
+        if (confirmResult != MessageBoxResult.Yes)
         {
-            if (_saveService.CopySteamIdToAnother(SelectedSourceId, SelectedDestId))
-            {
-                MessageBox.Show("存档复制成功！", "成功", MessageBoxButton.OK, MessageBoxImage.Information);
-            }
-            else
-            {
-                MessageBox.Show("存档复制失败，请检查Steam ID是否正确", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
+            return;
         }
+
+        var backupPath = _saveService.BackupSteamIdSaves(SelectedSteamId);
+        var success = _saveService.CopyWithinSteamId(SelectedSteamId, direction, SelectedSaveSlot.Key);
+        if (!success)
+        {
+            MessageBox.Show("存档复制失败，请确认源栏位存档是否存在", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
+
+        StatusMessage = $"已完成存档复制（{directionText}，{slotText}）";
+        var backupText = string.IsNullOrWhiteSpace(backupPath) ? "备份失败或无可备份内容" : backupPath;
+        MessageBox.Show($"存档复制成功！\n备份位置: {backupText}", "成功", MessageBoxButton.OK, MessageBoxImage.Information);
     }
 
     [RelayCommand]
@@ -341,9 +572,17 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private void OpenBackupDirectory()
+    {
+        var backupDir = GamePathService.BackupDir;
+        Directory.CreateDirectory(backupDir);
+        System.Diagnostics.Process.Start("explorer.exe", backupDir);
+    }
+
+    [RelayCommand]
     private void LaunchGame()
     {
-        if (string.IsNullOrEmpty(SelectedPath))
+        if (string.IsNullOrWhiteSpace(SelectedPath))
         {
             MessageBox.Show("请先选择游戏路径", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
@@ -352,17 +591,16 @@ public partial class MainViewModel : ObservableObject
         if (_launchService.LaunchGame(SelectedPath, false))
         {
             StatusMessage = "游戏已启动";
+            return;
         }
-        else
-        {
-            MessageBox.Show("启动游戏失败，请检查游戏路径", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
-        }
+
+        MessageBox.Show("启动游戏失败，请检查游戏路径", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
     }
 
     [RelayCommand]
     private void LaunchGameNoMods()
     {
-        if (string.IsNullOrEmpty(SelectedPath))
+        if (string.IsNullOrWhiteSpace(SelectedPath))
         {
             MessageBox.Show("请先选择游戏路径", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
@@ -370,12 +608,11 @@ public partial class MainViewModel : ObservableObject
 
         if (_launchService.LaunchGame(SelectedPath, true))
         {
-            StatusMessage = "游戏已启动(无Mod)";
+            StatusMessage = "游戏已启动（无Mod）";
+            return;
         }
-        else
-        {
-            MessageBox.Show("启动游戏失败，请检查游戏路径", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
-        }
+
+        MessageBox.Show("启动游戏失败，请检查游戏路径", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
     }
 
     [RelayCommand]
@@ -384,11 +621,10 @@ public partial class MainViewModel : ObservableObject
         if (_launchService.LaunchGameViaSteam())
         {
             StatusMessage = "已通过Steam启动游戏";
+            return;
         }
-        else
-        {
-            MessageBox.Show("通过Steam启动失败，请确保Steam已安装", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
-        }
+
+        MessageBox.Show("通过Steam启动失败，请确认Steam已安装并已登录", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
     }
 
     [RelayCommand]
@@ -396,36 +632,10 @@ public partial class MainViewModel : ObservableObject
     {
         if (_launchService.LaunchGameViaSteamNoMods())
         {
-            StatusMessage = "已通过Steam启动游戏(无Mod)";
+            StatusMessage = "已通过Steam启动游戏（无Mod）";
+            return;
         }
-        else
-        {
-            MessageBox.Show("通过Steam启动失败，请确保Steam已安装", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
-        }
-    }
 
-    [RelayCommand]
-    private void OpenBackupDirectory()
-    {
-        var backupDir = GamePathService.BackupDir;
-        if (Directory.Exists(backupDir))
-        {
-            System.Diagnostics.Process.Start("explorer.exe", backupDir);
-        }
-    }
-
-    [RelayCommand]
-    private void OpenToolModsDirectory()
-    {
-        var modsDir = GamePathService.ToolModsDir;
-        if (Directory.Exists(modsDir))
-        {
-            System.Diagnostics.Process.Start("explorer.exe", modsDir);
-        }
-        else
-        {
-            Directory.CreateDirectory(modsDir);
-            System.Diagnostics.Process.Start("explorer.exe", modsDir);
-        }
+        MessageBox.Show("通过Steam启动失败，请确认Steam已安装并已登录", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
     }
 }

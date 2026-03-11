@@ -65,6 +65,11 @@ public class GamePathService
         return Directory.Exists(modsPath) ? modsPath : null;
     }
 
+    public string GetGamePendingModsDir(string gamePath)
+    {
+        return Path.Combine(gamePath, "mods_pending");
+    }
+
     public static void EnsureDirectoriesExist()
     {
         Directory.CreateDirectory(ToolModsDir);

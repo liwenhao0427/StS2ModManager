@@ -3,10 +3,9 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:vm="clr-namespace:StS2ModManager.ViewModels"
         mc:Ignorable="d"
-        Title="杀戮尖塔2 Mod管理器" Height="750" Width="950"
-        MinHeight="650" MinWidth="850"
+        Title="杀戮尖塔2 Mod管理器" Height="860" Width="1220"
+        MinHeight="760" MinWidth="1080"
         Background="#F5F5F5"
         WindowStartupLocation="CenterScreen">
 
@@ -26,9 +25,9 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}" 
-                                BorderBrush="{TemplateBinding BorderBrush}" 
-                                BorderThickness="1" 
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="1"
                                 CornerRadius="4"
                                 Padding="{TemplateBinding Padding}">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
@@ -85,31 +84,29 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- 标题 -->
         <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,16">
             <TextBlock Text="🎮" FontSize="28" Margin="0,0,8,0"/>
             <TextBlock Text="杀戮尖塔2 Mod管理器" FontSize="24" FontWeight="Bold" Foreground="#7C3AED" VerticalAlignment="Center"/>
         </StackPanel>
 
-        <!-- 游戏路径选择 -->
         <Border Grid.Row="1" Background="#FFFFFF" CornerRadius="8" Padding="16" Margin="0,0,0,16" BorderBrush="#DDDDDD" BorderThickness="1">
             <StackPanel>
                 <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
                     <TextBlock Text="游戏路径:" FontSize="14" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                    <ComboBox Width="500" ItemsSource="{Binding DetectedPaths}" SelectedItem="{Binding SelectedPath}"/>
+                    <ComboBox Width="620" ItemsSource="{Binding DetectedPaths}" SelectedItem="{Binding SelectedPath}"/>
                     <Button Content="刷新" Command="{Binding RefreshPathsCommand}" Margin="8,0,0,0"/>
                     <Button Content="浏览..." Command="{Binding BrowseGamePathCommand}" Margin="4,0,0,0"/>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="{Binding GamePathStatus}" Foreground="#22C55E" FontSize="12"/>
+                    <TextBlock Text="{Binding GamePathStatus}" Foreground="#22C55E" FontSize="12" VerticalAlignment="Center"/>
                     <Button Content="📂 游戏目录" Command="{Binding OpenGameDirectoryCommand}" Margin="16,0,0,0" Padding="8,4"/>
                     <Button Content="📂 游戏Mods" Command="{Binding OpenGameModsDirectoryCommand}" Margin="4,0,0,0" Padding="8,4"/>
+                    <Button Content="📂 待生效Mods" Command="{Binding OpenPendingModsDirectoryCommand}" Margin="4,0,0,0" Padding="8,4"/>
                     <Button Content="📂 工具Mods" Command="{Binding OpenToolModsDirectoryCommand}" Margin="4,0,0,0" Padding="8,4"/>
                 </StackPanel>
             </StackPanel>
         </Border>
 
-        <!-- Mod管理 -->
         <Grid Grid.Row="2" Margin="0,0,0,16">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
@@ -117,67 +114,117 @@
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
-            <!-- 工具Mods -->
             <Border Grid.Column="0" Background="#FFFFFF" CornerRadius="8" Padding="12" BorderBrush="#DDDDDD" BorderThickness="1">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
-                    
+
                     <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
-                        <TextBlock Text="我的mod (工具目录)" FontSize="16" FontWeight="Bold"/>
-                        <Button Content="🔄" Command="{Binding RefreshToolModsCommand}" ToolTip="刷新" Padding="6,2" Margin="8,0,0,0"/>
+                        <TextBlock Text="可用Mod（左侧来源）" FontSize="16" FontWeight="Bold"/>
+                        <Button Content="🔄" Command="{Binding RefreshToolModsCommand}" ToolTip="刷新可用Mod" Padding="6,2" Margin="8,0,0,0"/>
                     </StackPanel>
-                    
-                    <ListBox Grid.Row="1" ItemsSource="{Binding ToolMods}" Background="#FAFAFA" BorderThickness="0">
+
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,8">
+                        <ComboBox Width="360" ItemsSource="{Binding ModSources}" SelectedItem="{Binding SelectedModSource}" DisplayMemberPath="Name"/>
+                        <Button Content="添加来源" Command="{Binding AddModSourceCommand}" Margin="8,0,0,0"/>
+                        <Button Content="移除来源" Command="{Binding RemoveModSourceCommand}" Margin="4,0,0,0"/>
+                        <Button Content="打开来源" Command="{Binding OpenSelectedModSourceCommand}" Margin="4,0,0,0"/>
+                    </StackPanel>
+
+                    <ListBox Grid.Row="2" ItemsSource="{Binding ToolMods}" SelectedItem="{Binding SelectedToolMod}" Background="#FAFAFA" BorderThickness="0">
                         <ListBox.ItemTemplate>
                             <DataTemplate>
-                                <CheckBox IsChecked="{Binding IsEnabled}" Margin="4,2">
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="{Binding DisplayName}" Width="180" TextTrimming="CharacterEllipsis"/>
-                                        <TextBlock Text="{Binding SizeDisplay}" Foreground="#666666" FontSize="11" Margin="8,0,0,0"/>
-                                    </StackPanel>
-                                </CheckBox>
+                                <Border BorderBrush="#E6E6E6" BorderThickness="0,0,0,1" Padding="2,4">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <CheckBox Grid.Column="0" IsChecked="{Binding IsEnabled}" VerticalAlignment="Top"/>
+
+                                        <StackPanel Grid.Column="1" Margin="4,0,8,0">
+                                            <TextBlock Text="{Binding DisplayName}" FontWeight="Bold" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding FolderName}" Foreground="#666666" FontSize="11" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding LocationDisplay}" Foreground="#666666" FontSize="11" TextTrimming="CharacterEllipsis"/>
+                                        </StackPanel>
+
+                                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding SizeDisplay}" Foreground="#666666" FontSize="11" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                            <Button Content="打开" Command="{Binding DataContext.OpenModFolderCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" Padding="8,2"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
                             </DataTemplate>
                         </ListBox.ItemTemplate>
                     </ListBox>
 
-                    <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,8,0,0">
+                    <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,8,0,0">
+                        <TextBlock Text="备注名:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <TextBox Width="280" Text="{Binding AliasInput, UpdateSourceTrigger=PropertyChanged}"/>
+                        <Button Content="保存备注" Command="{Binding SaveAliasCommand}" Margin="8,0,0,0"/>
+                        <Button Content="清除" Command="{Binding ClearAliasCommand}" Margin="4,0,0,0"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="4" Orientation="Horizontal" Margin="0,8,0,0">
                         <Button Content="全选" Command="{Binding SelectAllModsCommand}" Padding="8,4"/>
                         <Button Content="取消" Command="{Binding DeselectAllModsCommand}" Padding="8,4"/>
                     </StackPanel>
                 </Grid>
             </Border>
 
-            <!-- 中间按钮 -->
             <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="8">
                 <Button Content="应用 →" Command="{Binding ApplyModsCommand}" FontWeight="Bold" Background="#7C3AED" Foreground="White"/>
                 <Button Content="← 取出" Command="{Binding RemoveModsCommand}" FontWeight="Bold" Margin="0,8,0,0"/>
             </StackPanel>
 
-            <!-- 游戏Mods -->
             <Border Grid.Column="2" Background="#FFFFFF" CornerRadius="8" Padding="12" BorderBrush="#DDDDDD" BorderThickness="1">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
-                    
+
                     <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
-                        <TextBlock Text="游戏mod (游戏目录)" FontSize="16" FontWeight="Bold"/>
-                        <Button Content="🔄" Command="{Binding RefreshGameModsCommand}" ToolTip="刷新" Padding="6,2" Margin="8,0,0,0"/>
+                        <TextBlock Text="生效Mod（取消勾选即移到待生效）" FontSize="16" FontWeight="Bold"/>
+                        <Button Content="🔄" Command="{Binding RefreshGameModsCommand}" ToolTip="刷新生效Mod" Padding="6,2" Margin="8,0,0,0"/>
                     </StackPanel>
-                    
+
                     <ListBox Grid.Row="1" ItemsSource="{Binding GameMods}" Background="#FAFAFA" BorderThickness="0">
                         <ListBox.ItemTemplate>
                             <DataTemplate>
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="✓" Foreground="#22C55E" Margin="4,0"/>
-                                    <TextBlock Text="{Binding FileName}" Width="180" TextTrimming="CharacterEllipsis"/>
-                                    <TextBlock Text="{Binding SizeDisplay}" Foreground="#666666" FontSize="11" Margin="8,0,0,0"/>
-                                </StackPanel>
+                                <Border BorderBrush="#E6E6E6" BorderThickness="0,0,0,1" Padding="2,4">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <CheckBox Grid.Column="0"
+                                                  IsChecked="{Binding IsEnabled, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                  VerticalAlignment="Top"
+                                                  Command="{Binding DataContext.ToggleGameModCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                  CommandParameter="{Binding}"/>
+
+                                        <StackPanel Grid.Column="1" Margin="4,0,8,0">
+                                            <TextBlock Text="{Binding DisplayName}" FontWeight="Bold" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding FolderName}" Foreground="#666666" FontSize="11" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding LocationDisplay}" Foreground="#666666" FontSize="11" TextTrimming="CharacterEllipsis"/>
+                                        </StackPanel>
+
+                                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding SizeDisplay}" Foreground="#666666" FontSize="11" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                            <Button Content="打开" Command="{Binding DataContext.OpenModFolderCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" Padding="8,2"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
                             </DataTemplate>
                         </ListBox.ItemTemplate>
                     </ListBox>
@@ -185,7 +232,6 @@
             </Border>
         </Grid>
 
-        <!-- 存档管理 -->
         <Border Grid.Row="3" Background="#FFFFFF" CornerRadius="8" Padding="16" Margin="0,0,0,16" BorderBrush="#DDDDDD" BorderThickness="1">
             <Grid>
                 <Grid.RowDefinitions>
@@ -194,24 +240,27 @@
                 </Grid.RowDefinitions>
 
                 <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
-                    <TextBlock Text="存档复制" FontSize="16" FontWeight="Bold"/>
+                    <TextBlock Text="存档复制（同一SteamID）" FontSize="16" FontWeight="Bold"/>
                     <Button Content="📂 打开存档目录" Command="{Binding OpenSavesDirectoryCommand}" Margin="16,0,0,0"/>
                     <Button Content="📂 打开备份目录" Command="{Binding OpenBackupDirectoryCommand}" Margin="8,0,0,0"/>
                     <Button Content="🔄 刷新" Command="{Binding RefreshSteamIdsCommand}" Margin="8,0,0,0"/>
                 </StackPanel>
 
-                <StackPanel Grid.Row="1" Orientation="Horizontal">
-                    <TextBlock Text="源Steam ID:" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                    <ComboBox ItemsSource="{Binding SteamIds}" SelectedItem="{Binding SelectedSourceId}" Width="180"/>
-                    <TextBlock Text="→" VerticalAlignment="Center" Margin="16,0"/>
-                    <TextBlock Text="目标Steam ID:" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                    <ComboBox ItemsSource="{Binding SteamIds}" SelectedItem="{Binding SelectedDestId}" Width="180"/>
-                    <Button Content="复制存档" Command="{Binding CopySaveToAnotherCommand}" Margin="16,0,0,0" Background="#7C3AED" Foreground="White" FontWeight="Bold"/>
-                </StackPanel>
+                <WrapPanel Grid.Row="1" VerticalAlignment="Center">
+                    <TextBlock Text="Steam ID:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <ComboBox Width="200" ItemsSource="{Binding SteamIds}" SelectedItem="{Binding SelectedSteamId}"/>
+
+                    <TextBlock Text="复制方向:" VerticalAlignment="Center" Margin="16,0,8,0"/>
+                    <ComboBox Width="210" ItemsSource="{Binding SaveDirections}" SelectedItem="{Binding SelectedSaveDirection}" DisplayMemberPath="Label"/>
+
+                    <TextBlock Text="栏位:" VerticalAlignment="Center" Margin="16,0,8,0"/>
+                    <ComboBox Width="120" ItemsSource="{Binding SaveSlots}" SelectedItem="{Binding SelectedSaveSlot}" DisplayMemberPath="Label"/>
+
+                    <Button Content="复制存档" Command="{Binding CopySaveCommand}" Margin="16,0,0,0" Background="#7C3AED" Foreground="White" FontWeight="Bold"/>
+                </WrapPanel>
             </Grid>
         </Border>
 
-        <!-- 游戏启动 -->
         <Border Grid.Row="4" Background="#FFFFFF" CornerRadius="8" Padding="16" Margin="0,0,0,16" BorderBrush="#DDDDDD" BorderThickness="1">
             <StackPanel>
                 <TextBlock Text="启动游戏" FontSize="16" FontWeight="Bold" Margin="0,0,0,8"/>
@@ -224,7 +273,6 @@
             </StackPanel>
         </Border>
 
-        <!-- 状态栏 -->
         <Border Grid.Row="5" Background="#FFFFFF" CornerRadius="4" Padding="12,8" BorderBrush="#DDDDDD" BorderThickness="1">
             <TextBlock Text="{Binding StatusMessage}" Foreground="#666666"/>
         </Border>

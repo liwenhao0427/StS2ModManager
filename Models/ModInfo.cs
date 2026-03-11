@@ -1,16 +1,25 @@
-using System.IO;
+using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace StS2ModManager.Models;
 
-public class ModInfo
+public partial class ModInfo : ObservableObject
 {
-    public string FileName { get; set; } = string.Empty;
-    public string DisplayName { get; set; } = string.Empty;
-    public string FullPath { get; set; } = string.Empty;
+    public string ModKey { get; set; } = string.Empty;
+    public string FolderName { get; set; } = string.Empty;
+    public string FolderPath { get; set; } = string.Empty;
+    public string SourcePath { get; set; } = string.Empty;
+    public string SourceName { get; set; } = string.Empty;
     public long Size { get; set; }
     public DateTime ModifiedTime { get; set; }
-    public bool IsEnabled { get; set; }
     public bool IsFromGameDir { get; set; }
+
+    [ObservableProperty]
+    private string _displayName = string.Empty;
+
+    [ObservableProperty]
+    private bool _isEnabled = true;
+
+    public string LocationDisplay => SourceName;
 
     public string SizeDisplay => Size switch
     {

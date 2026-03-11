@@ -3,15 +3,14 @@ using System.IO;
 
 namespace StS2ModManager.Services;
 
+public enum SaveCopyDirection
+{
+    ModdedToNormal,
+    NormalToModded
+}
+
 public class SaveService
 {
-    private readonly GamePathService _pathService;
-
-    public SaveService(GamePathService pathService)
-    {
-        _pathService = pathService;
-    }
-
     public string GetSteamBasePath()
     {
         return Path.Combine(GamePathService.AppDataPath, "steam");
@@ -20,28 +19,43 @@ public class SaveService
     public List<string> GetAllSteamIds()
     {
         var steamPath = GetSteamBasePath();
-        var ids = new List<string>();
-
-        if (!Directory.Exists(steamPath)) return ids;
-
-        foreach (var dir in Directory.GetDirectories(steamPath))
+        if (!Directory.Exists(steamPath))
         {
-            var dirName = Path.GetFileName(dir);
-            if (long.TryParse(dirName, out _))
-            {
-                ids.Add(dirName);
-            }
+            return new List<string>();
         }
 
-        return ids;
+        return Directory.GetDirectories(steamPath)
+            .Select(Path.GetFileName)
+            .Where(x => !string.IsNullOrWhiteSpace(x) && long.TryParse(x, out _))
+            .OrderBy(x => x, StringComparer.Ordinal)
+            .ToList()!;
     }
 
-    public string BackupSaves(string sourcePath)
+    public string? GetLatestSteamId()
     {
-        if (!Directory.Exists(sourcePath)) return string.Empty;
+        var steamPath = GetSteamBasePath();
+        if (!Directory.Exists(steamPath))
+        {
+            return null;
+        }
+
+        return Directory.GetDirectories(steamPath)
+            .Where(dir => long.TryParse(Path.GetFileName(dir), out _))
+            .OrderByDescending(GetSteamDirTimestamp)
+            .Select(Path.GetFileName)
+            .FirstOrDefault();
+    }
+
+    public string BackupSteamIdSaves(string steamId)
+    {
+        var sourcePath = Path.Combine(GetSteamBasePath(), steamId);
+        if (!Directory.Exists(sourcePath))
+        {
+            return string.Empty;
+        }
 
         var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-        var backupPath = Path.Combine(GamePathService.BackupDir, "Saves", timestamp);
+        var backupPath = Path.Combine(GamePathService.BackupDir, "Saves", timestamp, steamId);
 
         try
         {
@@ -54,32 +68,37 @@ public class SaveService
         }
     }
 
-    public bool CopySteamIdToAnother(string sourceId, string destId)
+    public bool CopyWithinSteamId(string steamId, SaveCopyDirection direction, string slotKey)
     {
-        var steamPath = GetSteamBasePath();
-        var sourcePath = Path.Combine(steamPath, sourceId);
-        var destPath = Path.Combine(steamPath, destId);
-
-        if (!Directory.Exists(sourcePath)) return false;
-
-        // 备份目标目录
-        if (Directory.Exists(destPath))
+        var steamIdPath = Path.Combine(GetSteamBasePath(), steamId);
+        if (!Directory.Exists(steamIdPath))
         {
-            BackupSaves(destPath);
-        }
-        else
-        {
-            BackupSaves(sourcePath);
+            return false;
         }
 
-        // 删除目标目录
-        if (Directory.Exists(destPath))
+        var slots = ResolveSlots(slotKey);
+        if (slots.Count == 0)
         {
-            Directory.Delete(destPath, true);
+            return false;
         }
 
-        // 复制源目录到目标目录
-        CopyDirectory(sourcePath, destPath);
+        foreach (var slot in slots)
+        {
+            var fromPath = GetSlotPath(steamIdPath, slot, direction == SaveCopyDirection.ModdedToNormal);
+            var toPath = GetSlotPath(steamIdPath, slot, direction == SaveCopyDirection.NormalToModded);
+
+            if (!Directory.Exists(fromPath))
+            {
+                continue;
+            }
+
+            if (Directory.Exists(toPath))
+            {
+                Directory.Delete(toPath, true);
+            }
+
+            CopyDirectory(fromPath, toPath);
+        }
 
         return true;
     }
@@ -88,19 +107,73 @@ public class SaveService
     {
         var path = GetSteamBasePath();
         if (Directory.Exists(path))
+        {
             Process.Start("explorer.exe", path);
-        else if (Directory.Exists(GamePathService.AppDataPath))
+            return;
+        }
+
+        if (Directory.Exists(GamePathService.AppDataPath))
+        {
             Process.Start("explorer.exe", GamePathService.AppDataPath);
+        }
     }
 
-    private void CopyDirectory(string src, string dest)
+    private static DateTime GetSteamDirTimestamp(string steamDir)
+    {
+        var profileCandidates = Directory.GetDirectories(steamDir, "profile*", SearchOption.TopDirectoryOnly)
+            .ToList();
+
+        var moddedDir = Path.Combine(steamDir, "modded");
+        if (Directory.Exists(moddedDir))
+        {
+            profileCandidates.AddRange(Directory.GetDirectories(moddedDir, "profile*", SearchOption.TopDirectoryOnly));
+        }
+
+        var latestProfile = profileCandidates
+            .Where(Directory.Exists)
+            .Select(Directory.GetLastWriteTime)
+            .DefaultIfEmpty(Directory.GetLastWriteTime(steamDir))
+            .Max();
+
+        return latestProfile;
+    }
+
+    private static string GetSlotPath(string steamIdPath, int slot, bool modded)
+    {
+        var folder = $"profile{slot}";
+        return modded
+            ? Path.Combine(steamIdPath, "modded", folder)
+            : Path.Combine(steamIdPath, folder);
+    }
+
+    private static List<int> ResolveSlots(string slotKey)
+    {
+        if (string.Equals(slotKey, "all", StringComparison.OrdinalIgnoreCase))
+        {
+            return new List<int> { 1, 2, 3 };
+        }
+
+        if (int.TryParse(slotKey, out var slot) && slot is >= 1 and <= 3)
+        {
+            return new List<int> { slot };
+        }
+
+        return new List<int>();
+    }
+
+    private static void CopyDirectory(string src, string dest)
     {
         Directory.CreateDirectory(dest);
         foreach (var file in Directory.GetFiles(src, "*", SearchOption.AllDirectories))
         {
             var relativePath = Path.GetRelativePath(src, file);
             var destFile = Path.Combine(dest, relativePath);
-            Directory.CreateDirectory(Path.GetDirectoryName(destFile)!);
+            var destDir = Path.GetDirectoryName(destFile);
+            if (!string.IsNullOrWhiteSpace(destDir))
+            {
+                Directory.CreateDirectory(destDir);
+            }
+
             File.Copy(file, destFile, true);
         }
     }
