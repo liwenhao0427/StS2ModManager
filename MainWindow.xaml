@@ -370,7 +370,7 @@
                                 <TextBox Grid.Row="2" Grid.Column="1" Margin="0,0,0,6" Text="{Binding ModVersionInput, UpdateSourceTrigger=PropertyChanged}"/>
 
                                 <TextBlock Grid.Row="3" Grid.Column="0" Text="更新时间:" HorizontalAlignment="Right" Margin="0,0,8,6" VerticalAlignment="Center"/>
-                                <TextBox Grid.Row="3" Grid.Column="1" Margin="0,0,0,6" Text="{Binding SelectedModForDetail.UpdatedDisplay}" IsReadOnly="True"/>
+                                <TextBox Grid.Row="3" Grid.Column="1" Margin="0,0,0,6" Text="{Binding SelectedModUpdatedDisplay}" IsReadOnly="True"/>
 
                                 <TextBlock Grid.Row="4" Grid.Column="0" Text="扩展详情:" HorizontalAlignment="Right" Margin="0,0,8,0" VerticalAlignment="Center"/>
                                 <TextBox Grid.Row="4" Grid.Column="1" Text="{Binding ModDescriptionInput, UpdateSourceTrigger=PropertyChanged}"/>

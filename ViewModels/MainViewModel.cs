@@ -46,6 +46,9 @@ public partial class MainViewModel : ObservableObject
     private string _selectedModFolderName = string.Empty;
 
     [ObservableProperty]
+    private string _selectedModUpdatedDisplay = string.Empty;
+
+    [ObservableProperty]
     private ObservableCollection<ModInfo> _gameMods = new();
 
     [ObservableProperty]
@@ -189,27 +192,50 @@ public partial class MainViewModel : ObservableObject
 
     partial void OnSelectedToolModChanged(ModInfo? value)
     {
-        SetSelectedModContext(value);
+        if (value != null)
+        {
+            SetSelectedModContext(value);
+            return;
+        }
+
+        if (SelectedGameMod == null)
+        {
+            ClearSelectedModContext();
+        }
     }
 
     partial void OnSelectedGameModChanged(ModInfo? value)
     {
-        SetSelectedModContext(value);
+        if (value != null)
+        {
+            SetSelectedModContext(value);
+            return;
+        }
+
+        if (SelectedToolMod == null)
+        {
+            ClearSelectedModContext();
+        }
     }
 
     private void SetSelectedModContext(ModInfo? mod)
     {
         if (mod == null)
         {
-            SelectedModFolderName = string.Empty;
-            SelectedModFolderPath = string.Empty;
-            SelectedModForDetail = null;
+            ClearSelectedModContext();
             return;
         }
 
         SelectedModFolderName = mod.FolderName;
         SelectedModFolderPath = mod.FolderPath;
         SelectedModForDetail = mod;
+    }
+
+    private void ClearSelectedModContext()
+    {
+        SelectedModForDetail = null;
+        SelectedModFolderName = string.Empty;
+        SelectedModFolderPath = string.Empty;
     }
 
     partial void OnSelectedModFolderPathChanged(string value)
@@ -226,6 +252,7 @@ public partial class MainViewModel : ObservableObject
             ModDetailUrlInput = string.Empty;
             ModSocialUrlInput = string.Empty;
             ModDescriptionInput = string.Empty;
+            SelectedModUpdatedDisplay = string.Empty;
             return;
         }
 
@@ -240,6 +267,9 @@ public partial class MainViewModel : ObservableObject
         ModDetailUrlInput = meta.DetailUrl ?? string.Empty;
         ModSocialUrlInput = meta.SocialUrl ?? string.Empty;
         ModDescriptionInput = meta.Description ?? string.Empty;
+        SelectedModUpdatedDisplay = Directory.Exists(value)
+            ? Directory.GetLastWriteTime(value).ToString("yyyy-MM-dd HH:mm")
+            : string.Empty;
     }
 
     partial void OnSelectedSteamIdChanged(string? value)
