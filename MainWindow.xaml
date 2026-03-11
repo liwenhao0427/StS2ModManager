@@ -208,6 +208,7 @@
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="Auto"/>
                                                 <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
                                             </Grid.ColumnDefinitions>
                                             <Grid.RowDefinitions>
                                                 <RowDefinition Height="Auto"/>
@@ -226,6 +227,13 @@
                                                 <TextBlock Text="{Binding AuthorDisplay}" FontSize="11" Foreground="#5D7388" TextTrimming="CharacterEllipsis"/>
                                             </StackPanel>
                                             <TextBlock Grid.Column="1" Grid.Row="1" Text="{Binding LocationDisplay}" FontSize="11" Foreground="#5D7388" TextTrimming="CharacterEllipsis"/>
+                                            <Button Grid.Column="2"
+                                                    Grid.RowSpan="2"
+                                                    Content="打开"
+                                                    Command="{Binding DataContext.OpenModFolderCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                    CommandParameter="{Binding}"
+                                                    Padding="8,2"
+                                                    Margin="6,0,0,0"/>
                                         </Grid>
                                     </DataTemplate>
                                 </ListBox.ItemTemplate>
@@ -259,6 +267,7 @@
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="Auto"/>
                                                 <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
                                             </Grid.ColumnDefinitions>
                                             <Grid.RowDefinitions>
                                                 <RowDefinition Height="Auto"/>
@@ -277,6 +286,13 @@
                                                 <TextBlock Text="{Binding AuthorDisplay}" FontSize="11" Foreground="#5D7388" TextTrimming="CharacterEllipsis"/>
                                             </StackPanel>
                                             <TextBlock Grid.Column="1" Grid.Row="1" Text="{Binding LocationDisplay}" FontSize="11" Foreground="#5D7388" TextTrimming="CharacterEllipsis"/>
+                                            <Button Grid.Column="2"
+                                                    Grid.RowSpan="2"
+                                                    Content="打开"
+                                                    Command="{Binding DataContext.OpenModFolderCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                    CommandParameter="{Binding}"
+                                                    Padding="8,2"
+                                                    Margin="6,0,0,0"/>
                                         </Grid>
                                     </DataTemplate>
                                 </ListBox.ItemTemplate>
