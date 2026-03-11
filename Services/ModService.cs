@@ -1,4 +1,6 @@
 using System.IO;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using StS2ModManager.Models;
 
@@ -239,6 +241,49 @@ public class ModService
 
         return ScanSingleSource(source, true)
             .OrderBy(x => x.DisplayName, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    public List<ModInfo> BuildUnifiedMods(List<ModInfo> sourceMods, List<ModInfo> gameMods)
+    {
+        var result = new List<ModInfo>();
+        var gameMap = gameMods
+            .GroupBy(x => x.FolderName, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+        var sourceGroups = sourceMods
+            .GroupBy(x => x.FolderName, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
+
+        var folderNames = gameMap.Keys
+            .Union(sourceGroups.Keys, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        foreach (var folderName in folderNames)
+        {
+            if (gameMap.TryGetValue(folderName, out var gameMod))
+            {
+                gameMod.IsEnabled = true;
+                result.Add(gameMod);
+                continue;
+            }
+
+            if (!sourceGroups.TryGetValue(folderName, out var candidates) || candidates.Count == 0)
+            {
+                continue;
+            }
+
+            foreach (var mod in DeduplicateByContent(candidates))
+            {
+                mod.IsEnabled = false;
+                result.Add(mod);
+            }
+        }
+
+        return result
+            .OrderBy(x => x.DisplayName, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(x => x.SourceName, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(x => x.SourcePath, StringComparer.OrdinalIgnoreCase)
             .ToList();
     }
 
@@ -483,6 +528,59 @@ public class ModService
         return Directory
             .GetFiles(folder, "*", SearchOption.AllDirectories)
             .Sum(file => new FileInfo(file).Length);
+    }
+
+    private static List<ModInfo> DeduplicateByContent(List<ModInfo> mods)
+    {
+        var hashSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var result = new List<ModInfo>();
+        foreach (var mod in mods.OrderBy(x => x.SourceName, StringComparer.OrdinalIgnoreCase).ThenBy(x => x.SourcePath, StringComparer.OrdinalIgnoreCase))
+        {
+            var hash = ComputeDirectoryContentHash(mod.FolderPath);
+            if (hashSet.Add(hash))
+            {
+                result.Add(mod);
+            }
+        }
+
+        return result;
+    }
+
+    private static string ComputeDirectoryContentHash(string folderPath)
+    {
+        if (!Directory.Exists(folderPath))
+        {
+            return string.Empty;
+        }
+
+        try
+        {
+            using var hasher = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+            var files = Directory
+                .GetFiles(folderPath, "*", SearchOption.AllDirectories)
+                .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            foreach (var file in files)
+            {
+                var relativePath = Path.GetRelativePath(folderPath, file).Replace('\\', '/');
+                var pathBytes = Encoding.UTF8.GetBytes(relativePath.ToLowerInvariant());
+                hasher.AppendData(pathBytes);
+
+                var fileInfo = new FileInfo(file);
+                var lengthBytes = BitConverter.GetBytes(fileInfo.Length);
+                hasher.AppendData(lengthBytes);
+
+                var fileHash = SHA256.HashData(File.ReadAllBytes(file));
+                hasher.AppendData(fileHash);
+            }
+
+            return Convert.ToHexString(hasher.GetHashAndReset());
+        }
+        catch
+        {
+            return $"fallback:{folderPath}";
+        }
     }
 
     private static void CopyDirectory(string source, string destination)

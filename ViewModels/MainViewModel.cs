@@ -198,10 +198,7 @@ public partial class MainViewModel : ObservableObject
             return;
         }
 
-        if (SelectedGameMod == null)
-        {
-            ClearSelectedModContext();
-        }
+        ClearSelectedModContext();
     }
 
     partial void OnSelectedGameModChanged(ModInfo? value)
@@ -209,12 +206,6 @@ public partial class MainViewModel : ObservableObject
         if (value != null)
         {
             SetSelectedModContext(value);
-            return;
-        }
-
-        if (SelectedToolMod == null)
-        {
-            ClearSelectedModContext();
         }
     }
 
@@ -462,14 +453,13 @@ public partial class MainViewModel : ObservableObject
     private void RefreshToolMods()
     {
         ToolMods.Clear();
-        var activeSet = string.IsNullOrWhiteSpace(SelectedPath)
-            ? new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            : _modService.GetActiveModFolderNames(SelectedPath);
-
-        var mods = _modService.ScanModsFromSources(ModSources);
+        var sourceMods = _modService.ScanModsFromSources(ModSources);
+        var gameMods = string.IsNullOrWhiteSpace(SelectedPath)
+            ? new List<ModInfo>()
+            : _modService.ScanGameMods(SelectedPath);
+        var mods = _modService.BuildUnifiedMods(sourceMods, gameMods);
         foreach (var mod in mods)
         {
-            mod.IsEnabled = activeSet.Contains(mod.FolderName);
             ToolMods.Add(mod);
         }
     }
@@ -677,7 +667,11 @@ public partial class MainViewModel : ObservableObject
             return;
         }
 
-        var toEnable = ToolMods.Where(x => !x.IsEnabled).ToList();
+        var toEnable = ToolMods
+            .Where(x => !x.IsEnabled)
+            .GroupBy(x => x.FolderName, StringComparer.OrdinalIgnoreCase)
+            .Select(g => g.First())
+            .ToList();
         foreach (var mod in toEnable)
         {
             _modService.ApplySingleMod(SelectedPath, mod);
@@ -697,7 +691,11 @@ public partial class MainViewModel : ObservableObject
             return;
         }
 
-        var toDisable = ToolMods.Where(x => x.IsEnabled).ToList();
+        var toDisable = ToolMods
+            .Where(x => x.IsEnabled)
+            .GroupBy(x => x.FolderName, StringComparer.OrdinalIgnoreCase)
+            .Select(g => g.First())
+            .ToList();
         foreach (var mod in toDisable)
         {
             _modService.MoveGameModToPendingByFolderName(SelectedPath, mod.FolderName);
