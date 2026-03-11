@@ -12,6 +12,22 @@ public partial class ModInfo : ObservableObject
     public long Size { get; set; }
     public DateTime ModifiedTime { get; set; }
     public bool IsFromGameDir { get; set; }
+    public string MetadataFilePath { get; set; } = string.Empty;
+
+    [ObservableProperty]
+    private string _author = string.Empty;
+
+    [ObservableProperty]
+    private string _remark = string.Empty;
+
+    [ObservableProperty]
+    private string _authorUrl = string.Empty;
+
+    [ObservableProperty]
+    private string _socialUrl = string.Empty;
+
+    [ObservableProperty]
+    private string _description = string.Empty;
 
     [ObservableProperty]
     private string _displayName = string.Empty;
@@ -20,6 +36,10 @@ public partial class ModInfo : ObservableObject
     private bool _isEnabled = true;
 
     public string LocationDisplay => SourceName;
+
+    public string AuthorDisplay => string.IsNullOrWhiteSpace(Author) ? "未知作者" : Author;
+
+    public string UpdatedDisplay => ModifiedTime.ToString("yyyy-MM-dd HH:mm");
 
     public string SizeDisplay => Size switch
     {

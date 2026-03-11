@@ -1,10 +1,13 @@
 using System.IO;
+using System.Text.Json;
 using StS2ModManager.Models;
 
 namespace StS2ModManager.Services;
 
 public class ModService
 {
+    private const string MetaFileName = "modinfo.json";
+
     private readonly GamePathService _pathService;
     private readonly SettingsService _settingsService;
     private AppSettings _settings;
@@ -91,33 +94,64 @@ public class ModService
         SaveSettings();
     }
 
-    public void SetAlias(string modKey, string alias)
+    public bool SaveModMeta(ModInfo mod, ModMetaInfo meta)
     {
-        if (string.IsNullOrWhiteSpace(modKey))
+        if (mod == null || string.IsNullOrWhiteSpace(mod.FolderPath) || !Directory.Exists(mod.FolderPath))
         {
-            return;
+            return false;
         }
 
-        if (string.IsNullOrWhiteSpace(alias))
+        try
         {
-            _settings.ModAliases.Remove(modKey);
-        }
-        else
-        {
-            _settings.ModAliases[modKey] = alias.Trim();
-        }
+            var normalizedMeta = new ModMetaInfo
+            {
+                Name = meta.Name.Trim(),
+                Remark = meta.Remark.Trim(),
+                Author = meta.Author.Trim(),
+                AuthorUrl = meta.AuthorUrl.Trim(),
+                SocialUrl = meta.SocialUrl.Trim(),
+                Description = meta.Description.Trim()
+            };
 
-        SaveSettings();
+            var metaFile = Path.Combine(mod.FolderPath, MetaFileName);
+            var json = JsonSerializer.Serialize(normalizedMeta, new JsonSerializerOptions
+            {
+                WriteIndented = true
+            });
+            File.WriteAllText(metaFile, json);
+
+            mod.DisplayName = string.IsNullOrWhiteSpace(normalizedMeta.Name) ? mod.FolderName : normalizedMeta.Name;
+            mod.Author = normalizedMeta.Author;
+            mod.Remark = normalizedMeta.Remark;
+            mod.AuthorUrl = normalizedMeta.AuthorUrl;
+            mod.SocialUrl = normalizedMeta.SocialUrl;
+            mod.Description = normalizedMeta.Description;
+            mod.MetadataFilePath = metaFile;
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
-    public string GetDisplayName(string modKey, string folderName)
+    public ModMetaInfo LoadModMeta(string modFolderPath)
     {
-        if (_settings.ModAliases.TryGetValue(modKey, out var alias) && !string.IsNullOrWhiteSpace(alias))
+        var metaFile = Path.Combine(modFolderPath, MetaFileName);
+        if (!File.Exists(metaFile))
         {
-            return alias;
+            return new ModMetaInfo();
         }
 
-        return folderName;
+        try
+        {
+            var json = File.ReadAllText(metaFile);
+            return JsonSerializer.Deserialize<ModMetaInfo>(json) ?? new ModMetaInfo();
+        }
+        catch
+        {
+            return new ModMetaInfo();
+        }
     }
 
     public List<ModInfo> ScanModsFromSources(IEnumerable<ModSourceInfo> sources)
@@ -179,14 +213,21 @@ public class ModService
             var lastWrite = Directory.GetLastWriteTime(folder);
             var size = CalculateDirectorySize(folder);
             var modKey = folderName;
+            var meta = LoadModMeta(folder);
             mods.Add(new ModInfo
             {
                 ModKey = modKey,
                 FolderName = folderName,
                 FolderPath = folder,
+                MetadataFilePath = Path.Combine(folder, MetaFileName),
                 SourcePath = source.Path,
                 SourceName = source.Name,
-                DisplayName = GetDisplayName(modKey, folderName),
+                DisplayName = string.IsNullOrWhiteSpace(meta.Name) ? folderName : meta.Name,
+                Author = meta.Author,
+                Remark = meta.Remark,
+                AuthorUrl = meta.AuthorUrl,
+                SocialUrl = meta.SocialUrl,
+                Description = meta.Description,
                 Size = size,
                 ModifiedTime = lastWrite,
                 IsFromGameDir = isFromGameDir,

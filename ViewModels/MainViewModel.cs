@@ -70,7 +70,22 @@ public partial class MainViewModel : ObservableObject
     private string _manualBackupName = string.Empty;
 
     [ObservableProperty]
-    private string _aliasInput = string.Empty;
+    private string _modNameInput = string.Empty;
+
+    [ObservableProperty]
+    private string _modAuthorInput = string.Empty;
+
+    [ObservableProperty]
+    private string _modRemarkInput = string.Empty;
+
+    [ObservableProperty]
+    private string _modAuthorUrlInput = string.Empty;
+
+    [ObservableProperty]
+    private string _modSocialUrlInput = string.Empty;
+
+    [ObservableProperty]
+    private string _modDescriptionInput = string.Empty;
 
     [ObservableProperty]
     private string _statusMessage = "就绪";
@@ -150,7 +165,12 @@ public partial class MainViewModel : ObservableObject
 
     partial void OnSelectedToolModChanged(ModInfo? value)
     {
-        AliasInput = value?.DisplayName ?? string.Empty;
+        ModNameInput = value?.DisplayName ?? string.Empty;
+        ModAuthorInput = value?.Author ?? string.Empty;
+        ModRemarkInput = value?.Remark ?? string.Empty;
+        ModAuthorUrlInput = value?.AuthorUrl ?? string.Empty;
+        ModSocialUrlInput = value?.SocialUrl ?? string.Empty;
+        ModDescriptionInput = value?.Description ?? string.Empty;
     }
 
     partial void OnSelectedSteamIdChanged(string? value)
@@ -384,7 +404,7 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void SaveAlias()
+    private void SaveModMeta()
     {
         if (SelectedToolMod == null)
         {
@@ -392,23 +412,77 @@ public partial class MainViewModel : ObservableObject
             return;
         }
 
-        _modService.SetAlias(SelectedToolMod.ModKey, AliasInput);
+        var success = _modService.SaveModMeta(SelectedToolMod, new ModMetaInfo
+        {
+            Name = ModNameInput,
+            Author = ModAuthorInput,
+            Remark = ModRemarkInput,
+            AuthorUrl = ModAuthorUrlInput,
+            SocialUrl = ModSocialUrlInput,
+            Description = ModDescriptionInput
+        });
+
+        if (!success)
+        {
+            MessageBox.Show("写入Mod信息失败，请确认该Mod目录可写", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
+
         RefreshToolMods();
-        StatusMessage = "备注名已保存";
+        RefreshGameMods();
+        StatusMessage = "Mod信息已保存到该Mod目录";
     }
 
     [RelayCommand]
-    private void ClearAlias()
+    private void ClearModMeta()
     {
         if (SelectedToolMod == null)
         {
             return;
         }
 
-        _modService.SetAlias(SelectedToolMod.ModKey, string.Empty);
-        AliasInput = SelectedToolMod.FolderName;
+        var success = _modService.SaveModMeta(SelectedToolMod, new ModMetaInfo());
+        if (!success)
+        {
+            MessageBox.Show("清空Mod信息失败，请确认该Mod目录可写", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
+
+        ModNameInput = SelectedToolMod.FolderName;
+        ModAuthorInput = string.Empty;
+        ModRemarkInput = string.Empty;
+        ModAuthorUrlInput = string.Empty;
+        ModSocialUrlInput = string.Empty;
+        ModDescriptionInput = string.Empty;
         RefreshToolMods();
-        StatusMessage = "备注名已清除";
+        RefreshGameMods();
+        StatusMessage = "Mod信息已重置";
+    }
+
+    [RelayCommand]
+    private void OpenUrl(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            return;
+        }
+
+        try
+        {
+            var fixedUrl = url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+                           url.StartsWith("https://", StringComparison.OrdinalIgnoreCase)
+                ? url
+                : $"https://{url}";
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = fixedUrl,
+                UseShellExecute = true
+            });
+        }
+        catch
+        {
+            MessageBox.Show("无法打开链接，请检查地址格式", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
     }
 
     [RelayCommand]
