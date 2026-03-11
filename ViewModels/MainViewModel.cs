@@ -61,6 +61,15 @@ public partial class MainViewModel : ObservableObject
     private SaveBackupInfo? _selectedSaveBackup;
 
     [ObservableProperty]
+    private ObservableCollection<SaveOptionItem> _restoreTargets = new();
+
+    [ObservableProperty]
+    private SaveOptionItem? _selectedRestoreTarget;
+
+    [ObservableProperty]
+    private string _manualBackupName = string.Empty;
+
+    [ObservableProperty]
     private string _aliasInput = string.Empty;
 
     [ObservableProperty]
@@ -109,6 +118,14 @@ public partial class MainViewModel : ObservableObject
         SelectedSaveDirection = SaveDirections[0];
         var savedSlot = _modService.Settings.PreferredSaveSlot;
         SelectedSaveSlot = SaveSlots.FirstOrDefault(x => string.Equals(x.Key, savedSlot, StringComparison.OrdinalIgnoreCase)) ?? SaveSlots[0];
+
+        RestoreTargets = new ObservableCollection<SaveOptionItem>
+        {
+            new() { Key = "auto", Label = "原路径（默认）" },
+            new() { Key = "normal", Label = "恢复到非Mod存档" },
+            new() { Key = "modded", Label = "恢复到Mod存档" }
+        };
+        SelectedRestoreTarget = RestoreTargets[0];
     }
 
     partial void OnSelectedPathChanged(string? value)
@@ -622,7 +639,9 @@ public partial class MainViewModel : ObservableObject
             $"确认恢复该备份？\n\n" +
             $"时间: {backup.BackupTime:yyyy-MM-dd HH:mm:ss}\n" +
             $"Steam ID: {backup.SteamId}\n" +
-            $"路径: {backup.SteamBackupPath}\n\n" +
+            $"备份路径: {backup.BackupPath}\n" +
+            $"备份类型: {backup.BackupKindDisplay}\n" +
+            $"恢复目标: {SelectedRestoreTarget?.Label ?? "原路径（默认）"}\n\n" +
             "当前存档会先自动备份后再恢复。",
             "恢复存档确认",
             MessageBoxButton.YesNo,
@@ -637,7 +656,8 @@ public partial class MainViewModel : ObservableObject
         SaveCopyResult result;
         try
         {
-            result = await Task.Run(() => _saveService.RestoreFromBackup(backup));
+            var targetMode = SelectedRestoreTarget?.Key ?? "auto";
+            result = await Task.Run(() => _saveService.RestoreFromBackup(backup, targetMode));
         }
         catch (Exception ex)
         {
@@ -662,6 +682,41 @@ public partial class MainViewModel : ObservableObject
         var rescueText = string.IsNullOrWhiteSpace(result.BackupPath) ? "未生成恢复前备份" : result.BackupPath;
         MessageBox.Show($"恢复完成。\n恢复前备份: {rescueText}", "成功", MessageBoxButton.OK, MessageBoxImage.Information);
         RefreshSaveBackups();
+    }
+
+    [RelayCommand]
+    private async Task CreateManualBackup()
+    {
+        if (string.IsNullOrWhiteSpace(SelectedSteamId))
+        {
+            MessageBox.Show("请先选择Steam ID", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        StatusMessage = "正在执行手动备份...";
+        SaveCopyResult result;
+        try
+        {
+            result = await Task.Run(() => _saveService.CreateManualBackup(SelectedSteamId, ManualBackupName));
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"手动备份失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+            StatusMessage = "手动备份失败";
+            return;
+        }
+
+        if (!result.Success)
+        {
+            MessageBox.Show("手动备份失败，请确认Steam ID目录存在", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+            StatusMessage = "手动备份失败";
+            return;
+        }
+
+        StatusMessage = "手动备份完成";
+        ManualBackupName = string.Empty;
+        RefreshSaveBackups();
+        MessageBox.Show($"手动备份成功！\n备份位置: {result.BackupPath}", "成功", MessageBoxButton.OK, MessageBoxImage.Information);
     }
 
     [RelayCommand]

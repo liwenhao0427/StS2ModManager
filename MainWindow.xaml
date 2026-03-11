@@ -262,6 +262,7 @@
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
                 <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
@@ -288,8 +289,17 @@
                 <WrapPanel Grid.Row="2" VerticalAlignment="Center" Margin="0,8,0,0">
                     <TextBlock Text="快捷恢复:" VerticalAlignment="Center" Margin="0,0,8,0"/>
                     <ComboBox Width="430" ItemsSource="{Binding SaveBackups}" SelectedItem="{Binding SelectedSaveBackup}" DisplayMemberPath="DisplayName"/>
+                    <TextBlock Text="恢复到:" VerticalAlignment="Center" Margin="12,0,8,0"/>
+                    <ComboBox Width="180" ItemsSource="{Binding RestoreTargets}" SelectedItem="{Binding SelectedRestoreTarget}" DisplayMemberPath="Label"/>
                     <Button Content="恢复选中备份" Command="{Binding RestoreSaveBackupCommand}" Margin="12,0,0,0" Background="#4B5563" Foreground="White" FontWeight="Bold"/>
                     <TextBlock Text="（列表按时间倒序，含备份时间）" VerticalAlignment="Center" Foreground="#666666" Margin="10,0,0,0"/>
+                </WrapPanel>
+
+                <WrapPanel Grid.Row="3" VerticalAlignment="Center" Margin="0,8,0,0">
+                    <TextBlock Text="手动备份名:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <TextBox Width="240" Text="{Binding ManualBackupName, UpdateSourceTrigger=PropertyChanged}"/>
+                    <Button Content="立即手动备份" Command="{Binding CreateManualBackupCommand}" Margin="12,0,0,0" Background="#2563EB" Foreground="White" FontWeight="Bold"/>
+                    <TextBlock Text="（不填则默认“手动备份”）" VerticalAlignment="Center" Foreground="#666666" Margin="10,0,0,0"/>
                 </WrapPanel>
             </Grid>
         </Border>
