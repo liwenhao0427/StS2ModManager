@@ -189,34 +189,27 @@ public partial class MainViewModel : ObservableObject
 
     partial void OnSelectedToolModChanged(ModInfo? value)
     {
-        if (value != null)
-        {
-            SelectedModFolderPath = value.FolderPath;
-            SelectedModFolderName = value.FolderName;
-            SelectedModForDetail = value;
-        }
-        else
-        {
-            SelectedModFolderPath = string.Empty;
-            SelectedModFolderName = string.Empty;
-            SelectedModForDetail = null;
-        }
+        SetSelectedModContext(value);
     }
 
     partial void OnSelectedGameModChanged(ModInfo? value)
     {
-        if (value != null)
+        SetSelectedModContext(value);
+    }
+
+    private void SetSelectedModContext(ModInfo? mod)
+    {
+        if (mod == null)
         {
-            SelectedModFolderPath = value.FolderPath;
-            SelectedModFolderName = value.FolderName;
-            SelectedModForDetail = value;
-        }
-        else
-        {
-            SelectedModFolderPath = string.Empty;
             SelectedModFolderName = string.Empty;
+            SelectedModFolderPath = string.Empty;
             SelectedModForDetail = null;
+            return;
         }
+
+        SelectedModFolderName = mod.FolderName;
+        SelectedModFolderPath = mod.FolderPath;
+        SelectedModForDetail = mod;
     }
 
     partial void OnSelectedModFolderPathChanged(string value)
@@ -577,7 +570,7 @@ public partial class MainViewModel : ObservableObject
             return;
         }
 
-        SelectedModForDetail = mod;
+        SetSelectedModContext(mod);
 
         try
         {
@@ -623,7 +616,7 @@ public partial class MainViewModel : ObservableObject
             return;
         }
 
-        SelectedModForDetail = mod;
+        SetSelectedModContext(mod);
 
         try
         {
