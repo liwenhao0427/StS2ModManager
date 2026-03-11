@@ -106,8 +106,10 @@ public class ModService
             var normalizedMeta = new ModMetaInfo
             {
                 Name = meta.Name.Trim(),
+                Version = meta.Version.Trim(),
                 Remark = meta.Remark.Trim(),
                 Author = meta.Author.Trim(),
+                DownloadUrl = meta.DownloadUrl.Trim(),
                 AuthorUrl = meta.AuthorUrl.Trim(),
                 SocialUrl = meta.SocialUrl.Trim(),
                 Description = meta.Description.Trim()
@@ -122,7 +124,9 @@ public class ModService
 
             mod.DisplayName = string.IsNullOrWhiteSpace(normalizedMeta.Name) ? mod.FolderName : normalizedMeta.Name;
             mod.Author = normalizedMeta.Author;
+            mod.Version = normalizedMeta.Version;
             mod.Remark = normalizedMeta.Remark;
+            mod.DownloadUrl = normalizedMeta.DownloadUrl;
             mod.AuthorUrl = normalizedMeta.AuthorUrl;
             mod.SocialUrl = normalizedMeta.SocialUrl;
             mod.Description = normalizedMeta.Description;
@@ -224,7 +228,9 @@ public class ModService
                 SourceName = source.Name,
                 DisplayName = string.IsNullOrWhiteSpace(meta.Name) ? folderName : meta.Name,
                 Author = meta.Author,
+                Version = meta.Version,
                 Remark = meta.Remark,
+                DownloadUrl = meta.DownloadUrl,
                 AuthorUrl = meta.AuthorUrl,
                 SocialUrl = meta.SocialUrl,
                 Description = meta.Description,

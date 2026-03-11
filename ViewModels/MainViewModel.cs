@@ -34,6 +34,12 @@ public partial class MainViewModel : ObservableObject
     private ModInfo? _selectedToolMod;
 
     [ObservableProperty]
+    private ModInfo? _selectedGameMod;
+
+    [ObservableProperty]
+    private ModInfo? _selectedModForDetail;
+
+    [ObservableProperty]
     private ObservableCollection<ModInfo> _gameMods = new();
 
     [ObservableProperty]
@@ -73,7 +79,13 @@ public partial class MainViewModel : ObservableObject
     private string _modNameInput = string.Empty;
 
     [ObservableProperty]
+    private string _modVersionInput = string.Empty;
+
+    [ObservableProperty]
     private string _modAuthorInput = string.Empty;
+
+    [ObservableProperty]
+    private string _modDownloadUrlInput = string.Empty;
 
     [ObservableProperty]
     private string _modRemarkInput = string.Empty;
@@ -165,8 +177,26 @@ public partial class MainViewModel : ObservableObject
 
     partial void OnSelectedToolModChanged(ModInfo? value)
     {
+        if (value != null)
+        {
+            SelectedModForDetail = value;
+        }
+    }
+
+    partial void OnSelectedGameModChanged(ModInfo? value)
+    {
+        if (value != null)
+        {
+            SelectedModForDetail = value;
+        }
+    }
+
+    partial void OnSelectedModForDetailChanged(ModInfo? value)
+    {
         ModNameInput = value?.DisplayName ?? string.Empty;
+        ModVersionInput = value?.Version ?? string.Empty;
         ModAuthorInput = value?.Author ?? string.Empty;
+        ModDownloadUrlInput = value?.DownloadUrl ?? string.Empty;
         ModRemarkInput = value?.Remark ?? string.Empty;
         ModAuthorUrlInput = value?.AuthorUrl ?? string.Empty;
         ModSocialUrlInput = value?.SocialUrl ?? string.Empty;
@@ -406,16 +436,18 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void SaveModMeta()
     {
-        if (SelectedToolMod == null)
+        if (SelectedModForDetail == null)
         {
-            MessageBox.Show("请先在左侧列表选中一个Mod", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show("请先选中一个Mod", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
 
-        var success = _modService.SaveModMeta(SelectedToolMod, new ModMetaInfo
+        var success = _modService.SaveModMeta(SelectedModForDetail, new ModMetaInfo
         {
             Name = ModNameInput,
+            Version = ModVersionInput,
             Author = ModAuthorInput,
+            DownloadUrl = ModDownloadUrlInput,
             Remark = ModRemarkInput,
             AuthorUrl = ModAuthorUrlInput,
             SocialUrl = ModSocialUrlInput,
@@ -436,20 +468,22 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void ClearModMeta()
     {
-        if (SelectedToolMod == null)
+        if (SelectedModForDetail == null)
         {
             return;
         }
 
-        var success = _modService.SaveModMeta(SelectedToolMod, new ModMetaInfo());
+        var success = _modService.SaveModMeta(SelectedModForDetail, new ModMetaInfo());
         if (!success)
         {
             MessageBox.Show("清空Mod信息失败，请确认该Mod目录可写", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
             return;
         }
 
-        ModNameInput = SelectedToolMod.FolderName;
+        ModNameInput = SelectedModForDetail.FolderName;
+        ModVersionInput = string.Empty;
         ModAuthorInput = string.Empty;
+        ModDownloadUrlInput = string.Empty;
         ModRemarkInput = string.Empty;
         ModAuthorUrlInput = string.Empty;
         ModSocialUrlInput = string.Empty;
