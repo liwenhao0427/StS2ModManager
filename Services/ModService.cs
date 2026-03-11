@@ -261,6 +261,25 @@ public class ModService
         return copiedCount;
     }
 
+    public bool ApplySingleMod(string gamePath, ModInfo mod)
+    {
+        var gameModsPath = _pathService.GetGameModsDir(gamePath);
+        if (string.IsNullOrWhiteSpace(gameModsPath) || !Directory.Exists(mod.FolderPath))
+        {
+            return false;
+        }
+
+        Directory.CreateDirectory(gameModsPath);
+        var targetPath = Path.Combine(gameModsPath, mod.FolderName);
+        if (Directory.Exists(targetPath))
+        {
+            Directory.Delete(targetPath, true);
+        }
+
+        CopyDirectory(mod.FolderPath, targetPath);
+        return true;
+    }
+
     public int RemoveModsToTool(string gamePath)
     {
         var gameModsPath = _pathService.GetGameModsDir(gamePath);
@@ -312,6 +331,51 @@ public class ModService
 
         Directory.Move(sourceFolder, targetFolder);
         return true;
+    }
+
+    public bool MoveGameModToPendingByFolderName(string gamePath, string folderName)
+    {
+        if (string.IsNullOrWhiteSpace(folderName))
+        {
+            return false;
+        }
+
+        var gameModsPath = _pathService.GetGameModsDir(gamePath);
+        if (string.IsNullOrWhiteSpace(gameModsPath))
+        {
+            return false;
+        }
+
+        var sourceFolder = Path.Combine(gameModsPath, folderName);
+        if (!Directory.Exists(sourceFolder))
+        {
+            return false;
+        }
+
+        var pendingPath = _pathService.GetGamePendingModsDir(gamePath);
+        Directory.CreateDirectory(pendingPath);
+        var targetFolder = Path.Combine(pendingPath, folderName);
+        if (Directory.Exists(targetFolder))
+        {
+            Directory.Delete(targetFolder, true);
+        }
+
+        Directory.Move(sourceFolder, targetFolder);
+        return true;
+    }
+
+    public HashSet<string> GetActiveModFolderNames(string gamePath)
+    {
+        var gameModsPath = _pathService.GetGameModsDir(gamePath);
+        if (string.IsNullOrWhiteSpace(gameModsPath) || !Directory.Exists(gameModsPath))
+        {
+            return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        return Directory.GetDirectories(gameModsPath, "*", SearchOption.TopDirectoryOnly)
+            .Select(Path.GetFileName)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase)!;
     }
 
     private static long CalculateDirectorySize(string folder)
