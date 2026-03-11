@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.IO;
+using StS2ModManager.Models;
 
 namespace StS2ModManager.Services;
 
@@ -7,6 +8,13 @@ public enum SaveCopyDirection
 {
     ModdedToNormal,
     NormalToModded
+}
+
+public class SaveCopyResult
+{
+    public bool Success { get; set; }
+    public int CopiedCount { get; set; }
+    public string BackupPath { get; set; } = string.Empty;
 }
 
 public class SaveService
@@ -46,61 +54,143 @@ public class SaveService
             .FirstOrDefault();
     }
 
-    public string BackupSteamIdSaves(string steamId)
+    public SaveCopyResult CopyWithinSteamId(string steamId, SaveCopyDirection direction, string slotKey)
     {
-        var sourcePath = Path.Combine(GetSteamBasePath(), steamId);
-        if (!Directory.Exists(sourcePath))
-        {
-            return string.Empty;
-        }
-
-        var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-        var backupPath = Path.Combine(GamePathService.BackupDir, "Saves", timestamp, steamId);
-
-        try
-        {
-            CopyDirectory(sourcePath, backupPath);
-            return backupPath;
-        }
-        catch
-        {
-            return string.Empty;
-        }
-    }
-
-    public bool CopyWithinSteamId(string steamId, SaveCopyDirection direction, string slotKey)
-    {
+        var result = new SaveCopyResult();
         var steamIdPath = Path.Combine(GetSteamBasePath(), steamId);
         if (!Directory.Exists(steamIdPath))
         {
-            return false;
+            return result;
         }
 
         var slots = ResolveSlots(slotKey);
         if (slots.Count == 0)
         {
-            return false;
+            return result;
         }
+
+        var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+        var backupRoot = Path.Combine(GamePathService.BackupDir, "Saves", timestamp, steamId);
+        Directory.CreateDirectory(backupRoot);
 
         foreach (var slot in slots)
         {
-            var fromPath = GetSlotPath(steamIdPath, slot, direction == SaveCopyDirection.ModdedToNormal);
-            var toPath = GetSlotPath(steamIdPath, slot, direction == SaveCopyDirection.NormalToModded);
+            var sourcePath = GetSlotPath(steamIdPath, slot, direction == SaveCopyDirection.ModdedToNormal);
+            var targetPath = GetSlotPath(steamIdPath, slot, direction == SaveCopyDirection.NormalToModded);
 
-            if (!Directory.Exists(fromPath))
+            if (!Directory.Exists(sourcePath))
             {
                 continue;
             }
 
-            if (Directory.Exists(toPath))
+            if (Directory.Exists(targetPath))
             {
-                Directory.Delete(toPath, true);
+                var backupTargetPath = BuildBackupSlotPath(backupRoot, slot, direction == SaveCopyDirection.NormalToModded);
+                var backupParent = Path.GetDirectoryName(backupTargetPath);
+                if (!string.IsNullOrWhiteSpace(backupParent))
+                {
+                    Directory.CreateDirectory(backupParent);
+                }
+
+                if (Directory.Exists(backupTargetPath))
+                {
+                    Directory.Delete(backupTargetPath, true);
+                }
+
+                Directory.Move(targetPath, backupTargetPath);
             }
 
-            CopyDirectory(fromPath, toPath);
+            CopyDirectory(sourcePath, targetPath);
+            result.CopiedCount++;
         }
 
-        return true;
+        result.Success = result.CopiedCount > 0;
+        result.BackupPath = result.CopiedCount > 0 ? backupRoot : string.Empty;
+        return result;
+    }
+
+    public List<SaveBackupInfo> GetSaveBackups(string? steamId = null)
+    {
+        var backupsRoot = Path.Combine(GamePathService.BackupDir, "Saves");
+        if (!Directory.Exists(backupsRoot))
+        {
+            return new List<SaveBackupInfo>();
+        }
+
+        var list = new List<SaveBackupInfo>();
+        foreach (var timestampDir in Directory.GetDirectories(backupsRoot, "*", SearchOption.TopDirectoryOnly))
+        {
+            var timestampKey = Path.GetFileName(timestampDir);
+            if (string.IsNullOrWhiteSpace(timestampKey))
+            {
+                continue;
+            }
+
+            var backupTime = TryParseTimestamp(timestampKey) ?? Directory.GetLastWriteTime(timestampDir);
+            foreach (var steamBackupDir in Directory.GetDirectories(timestampDir, "*", SearchOption.TopDirectoryOnly))
+            {
+                var id = Path.GetFileName(steamBackupDir);
+                if (string.IsNullOrWhiteSpace(id) || !long.TryParse(id, out _))
+                {
+                    continue;
+                }
+
+                if (!string.IsNullOrWhiteSpace(steamId) && !string.Equals(steamId, id, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                list.Add(new SaveBackupInfo
+                {
+                    TimestampKey = timestampKey,
+                    BackupTime = backupTime,
+                    SteamId = id,
+                    SteamBackupPath = steamBackupDir
+                });
+            }
+        }
+
+        return list
+            .OrderByDescending(x => x.BackupTime)
+            .ToList();
+    }
+
+    public SaveCopyResult RestoreFromBackup(SaveBackupInfo backup)
+    {
+        var result = new SaveCopyResult();
+        if (!Directory.Exists(backup.SteamBackupPath))
+        {
+            return result;
+        }
+
+        var steamIdPath = Path.Combine(GetSteamBasePath(), backup.SteamId);
+        Directory.CreateDirectory(GetSteamBasePath());
+
+        var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+        var rescueRoot = Path.Combine(GamePathService.BackupDir, "Saves", $"restore_before_{timestamp}", backup.SteamId);
+
+        if (Directory.Exists(steamIdPath))
+        {
+            var rescueParent = Path.GetDirectoryName(rescueRoot);
+            if (!string.IsNullOrWhiteSpace(rescueParent))
+            {
+                Directory.CreateDirectory(rescueParent);
+            }
+
+            if (Directory.Exists(rescueRoot))
+            {
+                Directory.Delete(rescueRoot, true);
+            }
+
+            Directory.Move(steamIdPath, rescueRoot);
+        }
+
+        CopyDirectory(backup.SteamBackupPath, steamIdPath);
+
+        result.Success = true;
+        result.CopiedCount = 1;
+        result.BackupPath = Directory.Exists(rescueRoot) ? rescueRoot : string.Empty;
+        return result;
     }
 
     public void OpenSavesDirectory()
@@ -129,13 +219,11 @@ public class SaveService
             profileCandidates.AddRange(Directory.GetDirectories(moddedDir, "profile*", SearchOption.TopDirectoryOnly));
         }
 
-        var latestProfile = profileCandidates
+        return profileCandidates
             .Where(Directory.Exists)
             .Select(Directory.GetLastWriteTime)
             .DefaultIfEmpty(Directory.GetLastWriteTime(steamDir))
             .Max();
-
-        return latestProfile;
     }
 
     private static string GetSlotPath(string steamIdPath, int slot, bool modded)
@@ -144,6 +232,14 @@ public class SaveService
         return modded
             ? Path.Combine(steamIdPath, "modded", folder)
             : Path.Combine(steamIdPath, folder);
+    }
+
+    private static string BuildBackupSlotPath(string backupRoot, int slot, bool modded)
+    {
+        var folder = $"profile{slot}";
+        return modded
+            ? Path.Combine(backupRoot, "modded", folder)
+            : Path.Combine(backupRoot, folder);
     }
 
     private static List<int> ResolveSlots(string slotKey)
@@ -176,5 +272,15 @@ public class SaveService
 
             File.Copy(file, destFile, true);
         }
+    }
+
+    private static DateTime? TryParseTimestamp(string text)
+    {
+        if (DateTime.TryParseExact(text, "yyyyMMdd_HHmmss", null, System.Globalization.DateTimeStyles.None, out var value))
+        {
+            return value;
+        }
+
+        return null;
     }
 }

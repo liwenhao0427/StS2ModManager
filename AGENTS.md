@@ -31,7 +31,7 @@
 
 ## 启动方式
 - 直接启动：调用游戏exe（可带 `--nomods`）
-- Steam启动：`steam.exe -applaunch 2291400`（可追加 `--nomods`）
+- Steam启动：`steam://rungameid/2868840`（无Mod可走 `steam://run/2868840//--nomods`）
 
 ## UI 要点
 - 亮色主题
@@ -48,3 +48,6 @@
 ## 待确认/待调整
 - 存档界面改为profile复选框模式
 - 最新steamId目录的选择策略是否需要手动选择
+
+## 会话规则（新增）
+- 每次会话修改完成后，助手需执行一次 git 提交。
