@@ -3,6 +3,7 @@ namespace StS2ModManager.Models;
 public class ModMetaInfo
 {
     public string Name { get; set; } = string.Empty;
+    public string Tag { get; set; } = string.Empty;
     public string Version { get; set; } = string.Empty;
     public string Detail { get; set; } = string.Empty;
     public string Remark { get; set; } = string.Empty;

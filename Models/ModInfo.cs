@@ -21,6 +21,9 @@ public partial class ModInfo : ObservableObject
     private string _version = string.Empty;
 
     [ObservableProperty]
+    private string _tag = string.Empty;
+
+    [ObservableProperty]
     private string _detail = string.Empty;
 
     [ObservableProperty]

@@ -108,6 +108,7 @@ public class ModService
             var normalizedMeta = new ModMetaInfo
             {
                 Name = meta.Name.Trim(),
+                Tag = meta.Tag.Trim(),
                 Version = meta.Version.Trim(),
                 Detail = meta.Detail.Trim(),
                 Remark = meta.Remark.Trim(),
@@ -150,6 +151,7 @@ public class ModService
             var normalizedMeta = new ModMetaInfo
             {
                 Name = meta.Name.Trim(),
+                Tag = meta.Tag.Trim(),
                 Version = meta.Version.Trim(),
                 Detail = meta.Detail.Trim(),
                 Remark = meta.Remark.Trim(),
@@ -169,6 +171,7 @@ public class ModService
             File.WriteAllText(metaFile, json);
 
             mod.DisplayName = string.IsNullOrWhiteSpace(normalizedMeta.Name) ? mod.FolderName : normalizedMeta.Name;
+            mod.Tag = normalizedMeta.Tag;
             mod.Author = normalizedMeta.Author;
             mod.Version = normalizedMeta.Version;
             mod.Detail = normalizedMeta.Detail;
@@ -323,6 +326,7 @@ public class ModService
                 SourcePath = source.Path,
                 SourceName = source.Name,
                 DisplayName = string.IsNullOrWhiteSpace(meta.Name) ? folderName : meta.Name,
+                Tag = meta.Tag,
                 Author = meta.Author,
                 Version = meta.Version,
                 Detail = meta.Detail,

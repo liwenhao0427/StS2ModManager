@@ -1,6 +1,8 @@
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.IO;
 using System.Windows;
+using System.Windows.Data;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using StS2ModManager.Models;
@@ -88,6 +90,9 @@ public partial class MainViewModel : ObservableObject
     private string _modNameInput = string.Empty;
 
     [ObservableProperty]
+    private string _modTagInput = string.Empty;
+
+    [ObservableProperty]
     private string _modVersionInput = string.Empty;
 
     [ObservableProperty]
@@ -115,7 +120,18 @@ public partial class MainViewModel : ObservableObject
     private string _modDescriptionInput = string.Empty;
 
     [ObservableProperty]
+    private string _modSearchText = string.Empty;
+
+    [ObservableProperty]
+    private ObservableCollection<string> _tagFilters = new();
+
+    [ObservableProperty]
+    private string _selectedTagFilter = "全部标签";
+
+    [ObservableProperty]
     private string _statusMessage = "就绪";
+
+    public ICollectionView FilteredToolModsView { get; }
 
     public MainViewModel()
     {
@@ -124,6 +140,9 @@ public partial class MainViewModel : ObservableObject
         _modService = new ModService(_pathService, settingsService);
         _saveService = new SaveService();
         _launchService = new GameLaunchService();
+
+        FilteredToolModsView = CollectionViewSource.GetDefaultView(ToolMods);
+        FilteredToolModsView.Filter = FilterToolMod;
 
         GamePathService.EnsureDirectoriesExist();
         InitializeSaveOptions();
@@ -234,6 +253,7 @@ public partial class MainViewModel : ObservableObject
         if (string.IsNullOrWhiteSpace(value))
         {
             ModNameInput = string.Empty;
+            ModTagInput = string.Empty;
             ModVersionInput = string.Empty;
             ModDetailInput = string.Empty;
             ModAuthorInput = string.Empty;
@@ -249,6 +269,7 @@ public partial class MainViewModel : ObservableObject
 
         var meta = _modService.LoadModMetaByPath(value, SelectedModFolderName);
         ModNameInput = string.IsNullOrWhiteSpace(meta.Name) ? SelectedModFolderName : meta.Name;
+        ModTagInput = meta.Tag ?? string.Empty;
         ModVersionInput = meta.Version ?? string.Empty;
         ModDetailInput = meta.Detail ?? string.Empty;
         ModAuthorInput = meta.Author ?? string.Empty;
@@ -279,6 +300,16 @@ public partial class MainViewModel : ObservableObject
 
         _modService.Settings.PreferredSaveSlot = value.Key;
         _modService.SaveSettings();
+    }
+
+    partial void OnModSearchTextChanged(string value)
+    {
+        RefreshToolModsFilter();
+    }
+
+    partial void OnSelectedTagFilterChanged(string value)
+    {
+        RefreshToolModsFilter();
     }
 
     [RelayCommand]
@@ -462,6 +493,9 @@ public partial class MainViewModel : ObservableObject
         {
             ToolMods.Add(mod);
         }
+
+        UpdateTagFilters();
+        RefreshToolModsFilter();
     }
 
     [RelayCommand]
@@ -504,6 +538,7 @@ public partial class MainViewModel : ObservableObject
         var success = _modService.SaveModMetaByPath(SelectedModFolderPath, SelectedModFolderName, new ModMetaInfo
         {
             Name = ModNameInput,
+            Tag = ModTagInput,
             Version = ModVersionInput,
             Detail = ModDetailInput,
             Author = ModAuthorInput,
@@ -542,6 +577,7 @@ public partial class MainViewModel : ObservableObject
         }
 
         ModNameInput = SelectedModFolderName;
+        ModTagInput = string.Empty;
         ModVersionInput = string.Empty;
         ModDetailInput = string.Empty;
         ModAuthorInput = string.Empty;
@@ -974,5 +1010,72 @@ public partial class MainViewModel : ObservableObject
         }
 
         MessageBox.Show("通过Steam启动失败，请确认Steam已安装并已登录", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+    }
+
+    private bool FilterToolMod(object obj)
+    {
+        if (obj is not ModInfo mod)
+        {
+            return false;
+        }
+
+        var keyword = ModSearchText?.Trim();
+        if (!string.IsNullOrWhiteSpace(keyword))
+        {
+            var hit = ContainsText(mod.DisplayName, keyword)
+                      || ContainsText(mod.FolderName, keyword)
+                      || ContainsText(mod.Author, keyword)
+                      || ContainsText(mod.Detail, keyword)
+                      || ContainsText(mod.Remark, keyword)
+                      || ContainsText(mod.Tag, keyword);
+            if (!hit)
+            {
+                return false;
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(SelectedTagFilter)
+            && !string.Equals(SelectedTagFilter, "全部标签", StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(mod.Tag?.Trim(), SelectedTagFilter, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    private static bool ContainsText(string? source, string keyword)
+    {
+        return !string.IsNullOrWhiteSpace(source)
+               && source.Contains(keyword, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void RefreshToolModsFilter()
+    {
+        FilteredToolModsView.Refresh();
+    }
+
+    private void UpdateTagFilters()
+    {
+        var tags = ToolMods
+            .Select(x => x.Tag?.Trim() ?? string.Empty)
+            .Where(x => x.Length > 0)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var nextFilters = new List<string> { "全部标签" };
+        nextFilters.AddRange(tags);
+
+        TagFilters.Clear();
+        foreach (var tag in nextFilters)
+        {
+            TagFilters.Add(tag);
+        }
+
+        if (!TagFilters.Contains(SelectedTagFilter))
+        {
+            SelectedTagFilter = "全部标签";
+        }
     }
 }

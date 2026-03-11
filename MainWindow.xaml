@@ -187,9 +187,10 @@
                         <ColumnDefinition Width="1*"/>
                     </Grid.ColumnDefinitions>
 
-                    <Border Grid.Column="0" Style="{StaticResource CardBorderStyle}" Margin="0,0,6,0">
+                    <Border Grid.Column="0" Style="{StaticResource CardBorderStyle}" Margin="0,0,6,0" Height="560">
                         <Grid>
                             <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="*"/>
                                 <RowDefinition Height="Auto"/>
@@ -200,7 +201,14 @@
                                 <Button Content="刷新" Command="{Binding RefreshToolModsCommand}" Margin="8,0,0,0" Padding="8,3"/>
                             </WrapPanel>
 
-                            <ListBox Grid.Row="1" Margin="0,8,0,0" ItemsSource="{Binding ToolMods}" SelectedItem="{Binding SelectedToolMod}">
+                            <WrapPanel Grid.Row="1" Margin="0,8,0,0" VerticalAlignment="Center">
+                                <TextBlock Text="搜索:" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                <TextBox Width="220" Text="{Binding ModSearchText, UpdateSourceTrigger=PropertyChanged}"/>
+                                <TextBlock Text="标签:" VerticalAlignment="Center" Margin="12,0,6,0"/>
+                                <ComboBox Width="160" ItemsSource="{Binding TagFilters}" SelectedItem="{Binding SelectedTagFilter}"/>
+                            </WrapPanel>
+
+                            <ListBox Grid.Row="2" Margin="0,8,0,0" ItemsSource="{Binding FilteredToolModsView}" SelectedItem="{Binding SelectedToolMod}">
                                 <ListBox.ItemTemplate>
                                     <DataTemplate>
                                         <Grid Margin="2,3">
@@ -226,7 +234,16 @@
                                                 <TextBlock Text="  " />
                                                 <TextBlock Text="{Binding AuthorDisplay}" FontSize="11" Foreground="#5D7388" TextTrimming="CharacterEllipsis"/>
                                             </StackPanel>
-                                            <TextBlock Grid.Column="1" Grid.Row="1" Text="{Binding LocationDisplay}" FontSize="11" Foreground="#5D7388" TextTrimming="CharacterEllipsis"/>
+                                            <Grid Grid.Column="1" Grid.Row="1">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="{Binding LocationDisplay}" FontSize="11" Foreground="#5D7388" TextTrimming="CharacterEllipsis"/>
+                                                <Border Grid.Column="1" Margin="8,0,0,0" Padding="6,1" Background="#E8F4FF" BorderBrush="#9AC5E8" BorderThickness="1" CornerRadius="4">
+                                                    <TextBlock Text="{Binding Tag}" FontSize="10" Foreground="#1D5E8A"/>
+                                                </Border>
+                                            </Grid>
                                             <Border Grid.Column="1" Grid.Row="2" Margin="0,3,0,0" Padding="6,2" Background="#FFF2E5" BorderBrush="#E1B48A" BorderThickness="1" CornerRadius="4">
                                                 <TextBlock Text="{Binding SourcePath}" FontSize="10" Foreground="#8A4F1D" TextTrimming="CharacterEllipsis"/>
                                             </Border>
@@ -243,7 +260,7 @@
                                 </ListBox.ItemTemplate>
                             </ListBox>
 
-                            <WrapPanel Grid.Row="2" Margin="0,8,0,0">
+                            <WrapPanel Grid.Row="3" Margin="0,8,0,0">
                                 <Button Content="添加来源" Command="{Binding AddModSourceCommand}"/>
                                 <Button Content="移除来源" Command="{Binding RemoveModSourceCommand}"/>
                                 <Button Content="打开来源" Command="{Binding OpenSelectedModSourceCommand}"/>
@@ -265,33 +282,37 @@
                             <TextBlock Grid.Row="0" Text="Mod详情（统一编辑）" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TitleBrush}"/>
 
                             <Grid Grid.Row="1" Margin="0,8,0,0">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                </Grid.RowDefinitions>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="74"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
+                                 <Grid.RowDefinitions>
+                                     <RowDefinition Height="Auto"/>
+                                     <RowDefinition Height="Auto"/>
+                                     <RowDefinition Height="Auto"/>
+                                     <RowDefinition Height="Auto"/>
+                                     <RowDefinition Height="Auto"/>
+                                     <RowDefinition Height="Auto"/>
+                                 </Grid.RowDefinitions>
+                                 <Grid.ColumnDefinitions>
+                                     <ColumnDefinition Width="74"/>
+                                     <ColumnDefinition Width="*"/>
+                                 </Grid.ColumnDefinitions>
 
-                                <TextBlock Grid.Row="0" Grid.Column="0" Text="名称:" HorizontalAlignment="Right" Margin="0,0,8,6" VerticalAlignment="Center"/>
-                                <TextBox Grid.Row="0" Grid.Column="1" Margin="0,0,0,6" Text="{Binding ModNameInput, UpdateSourceTrigger=PropertyChanged}"/>
+                                 <TextBlock Grid.Row="0" Grid.Column="0" Text="名称:" HorizontalAlignment="Right" Margin="0,0,8,6" VerticalAlignment="Center"/>
+                                 <TextBox Grid.Row="0" Grid.Column="1" Margin="0,0,0,6" Text="{Binding ModNameInput, UpdateSourceTrigger=PropertyChanged}"/>
 
-                                <TextBlock Grid.Row="1" Grid.Column="0" Text="详情:" HorizontalAlignment="Right" Margin="0,0,8,6" VerticalAlignment="Center"/>
-                                <TextBox Grid.Row="1" Grid.Column="1" Margin="0,0,0,6" Text="{Binding ModDetailInput, UpdateSourceTrigger=PropertyChanged}"/>
+                                 <TextBlock Grid.Row="1" Grid.Column="0" Text="标签:" HorizontalAlignment="Right" Margin="0,0,8,6" VerticalAlignment="Center"/>
+                                 <TextBox Grid.Row="1" Grid.Column="1" Margin="0,0,0,6" Text="{Binding ModTagInput, UpdateSourceTrigger=PropertyChanged}"/>
 
-                                <TextBlock Grid.Row="2" Grid.Column="0" Text="作者:" HorizontalAlignment="Right" Margin="0,0,8,6" VerticalAlignment="Center"/>
-                                <TextBox Grid.Row="2" Grid.Column="1" Margin="0,0,0,6" Text="{Binding ModAuthorInput, UpdateSourceTrigger=PropertyChanged}"/>
+                                 <TextBlock Grid.Row="2" Grid.Column="0" Text="详情:" HorizontalAlignment="Right" Margin="0,0,8,6" VerticalAlignment="Center"/>
+                                 <TextBox Grid.Row="2" Grid.Column="1" Margin="0,0,0,6" Text="{Binding ModDetailInput, UpdateSourceTrigger=PropertyChanged}"/>
 
-                                <TextBlock Grid.Row="3" Grid.Column="0" Text="下载链接:" HorizontalAlignment="Right" Margin="0,0,8,6" VerticalAlignment="Center"/>
-                                <TextBox Grid.Row="3" Grid.Column="1" Margin="0,0,0,6" Text="{Binding ModDownloadUrlInput, UpdateSourceTrigger=PropertyChanged}"/>
+                                 <TextBlock Grid.Row="3" Grid.Column="0" Text="作者:" HorizontalAlignment="Right" Margin="0,0,8,6" VerticalAlignment="Center"/>
+                                 <TextBox Grid.Row="3" Grid.Column="1" Margin="0,0,0,6" Text="{Binding ModAuthorInput, UpdateSourceTrigger=PropertyChanged}"/>
 
-                                <TextBlock Grid.Row="4" Grid.Column="0" Text="备注:" HorizontalAlignment="Right" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                                <TextBox Grid.Row="4" Grid.Column="1" Text="{Binding ModRemarkInput, UpdateSourceTrigger=PropertyChanged}"/>
-                            </Grid>
+                                 <TextBlock Grid.Row="4" Grid.Column="0" Text="下载链接:" HorizontalAlignment="Right" Margin="0,0,8,6" VerticalAlignment="Center"/>
+                                 <TextBox Grid.Row="4" Grid.Column="1" Margin="0,0,0,6" Text="{Binding ModDownloadUrlInput, UpdateSourceTrigger=PropertyChanged}"/>
+
+                                 <TextBlock Grid.Row="5" Grid.Column="0" Text="备注:" HorizontalAlignment="Right" Margin="0,0,8,0" VerticalAlignment="Top"/>
+                                 <TextBox Grid.Row="5" Grid.Column="1" Text="{Binding ModRemarkInput, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Height="72"/>
+                             </Grid>
 
                             <Grid Grid.Row="2" Margin="0,8,0,0">
                                 <Grid.RowDefinitions>
