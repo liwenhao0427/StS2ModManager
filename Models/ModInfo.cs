@@ -21,6 +21,9 @@ public partial class ModInfo : ObservableObject
     private string _version = string.Empty;
 
     [ObservableProperty]
+    private string _detail = string.Empty;
+
+    [ObservableProperty]
     private string _remark = string.Empty;
 
     [ObservableProperty]
@@ -31,6 +34,9 @@ public partial class ModInfo : ObservableObject
 
     [ObservableProperty]
     private string _description = string.Empty;
+
+    [ObservableProperty]
+    private string _detailUrl = string.Empty;
 
     [ObservableProperty]
     private string _downloadUrl = string.Empty;

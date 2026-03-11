@@ -88,6 +88,12 @@ public partial class MainViewModel : ObservableObject
     private string _modDownloadUrlInput = string.Empty;
 
     [ObservableProperty]
+    private string _modDetailInput = string.Empty;
+
+    [ObservableProperty]
+    private string _modDetailUrlInput = string.Empty;
+
+    [ObservableProperty]
     private string _modRemarkInput = string.Empty;
 
     [ObservableProperty]
@@ -195,10 +201,12 @@ public partial class MainViewModel : ObservableObject
     {
         ModNameInput = value?.DisplayName ?? string.Empty;
         ModVersionInput = value?.Version ?? string.Empty;
+        ModDetailInput = value?.Detail ?? string.Empty;
         ModAuthorInput = value?.Author ?? string.Empty;
         ModDownloadUrlInput = value?.DownloadUrl ?? string.Empty;
         ModRemarkInput = value?.Remark ?? string.Empty;
         ModAuthorUrlInput = value?.AuthorUrl ?? string.Empty;
+        ModDetailUrlInput = value?.DetailUrl ?? string.Empty;
         ModSocialUrlInput = value?.SocialUrl ?? string.Empty;
         ModDescriptionInput = value?.Description ?? string.Empty;
     }
@@ -446,10 +454,12 @@ public partial class MainViewModel : ObservableObject
         {
             Name = ModNameInput,
             Version = ModVersionInput,
+            Detail = ModDetailInput,
             Author = ModAuthorInput,
             DownloadUrl = ModDownloadUrlInput,
             Remark = ModRemarkInput,
             AuthorUrl = ModAuthorUrlInput,
+            DetailUrl = ModDetailUrlInput,
             SocialUrl = ModSocialUrlInput,
             Description = ModDescriptionInput
         });
@@ -482,10 +492,12 @@ public partial class MainViewModel : ObservableObject
 
         ModNameInput = SelectedModForDetail.FolderName;
         ModVersionInput = string.Empty;
+        ModDetailInput = string.Empty;
         ModAuthorInput = string.Empty;
         ModDownloadUrlInput = string.Empty;
         ModRemarkInput = string.Empty;
         ModAuthorUrlInput = string.Empty;
+        ModDetailUrlInput = string.Empty;
         ModSocialUrlInput = string.Empty;
         ModDescriptionInput = string.Empty;
         RefreshToolMods();
@@ -526,6 +538,8 @@ public partial class MainViewModel : ObservableObject
         {
             return;
         }
+
+        SelectedModForDetail = mod;
 
         try
         {
@@ -570,6 +584,8 @@ public partial class MainViewModel : ObservableObject
         {
             return;
         }
+
+        SelectedModForDetail = mod;
 
         try
         {

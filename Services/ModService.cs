@@ -107,10 +107,12 @@ public class ModService
             {
                 Name = meta.Name.Trim(),
                 Version = meta.Version.Trim(),
+                Detail = meta.Detail.Trim(),
                 Remark = meta.Remark.Trim(),
                 Author = meta.Author.Trim(),
                 DownloadUrl = meta.DownloadUrl.Trim(),
                 AuthorUrl = meta.AuthorUrl.Trim(),
+                DetailUrl = meta.DetailUrl.Trim(),
                 SocialUrl = meta.SocialUrl.Trim(),
                 Description = meta.Description.Trim()
             };
@@ -125,9 +127,11 @@ public class ModService
             mod.DisplayName = string.IsNullOrWhiteSpace(normalizedMeta.Name) ? mod.FolderName : normalizedMeta.Name;
             mod.Author = normalizedMeta.Author;
             mod.Version = normalizedMeta.Version;
+            mod.Detail = normalizedMeta.Detail;
             mod.Remark = normalizedMeta.Remark;
             mod.DownloadUrl = normalizedMeta.DownloadUrl;
             mod.AuthorUrl = normalizedMeta.AuthorUrl;
+            mod.DetailUrl = normalizedMeta.DetailUrl;
             mod.SocialUrl = normalizedMeta.SocialUrl;
             mod.Description = normalizedMeta.Description;
             mod.MetadataFilePath = metaFile;
@@ -139,22 +143,27 @@ public class ModService
         }
     }
 
-    public ModMetaInfo LoadModMeta(string modFolderPath)
+    public ModMetaInfo LoadModMeta(string modFolderPath, string folderName)
     {
         var metaFile = Path.Combine(modFolderPath, MetaFileName);
         if (!File.Exists(metaFile))
         {
-            return new ModMetaInfo();
+            var created = new ModMetaInfo
+            {
+                Name = folderName
+            };
+            TryWriteMetaFile(metaFile, created);
+            return created;
         }
 
         try
         {
             var json = File.ReadAllText(metaFile);
-            return JsonSerializer.Deserialize<ModMetaInfo>(json) ?? new ModMetaInfo();
+            return JsonSerializer.Deserialize<ModMetaInfo>(json) ?? new ModMetaInfo { Name = folderName };
         }
         catch
         {
-            return new ModMetaInfo();
+            return new ModMetaInfo { Name = folderName };
         }
     }
 
@@ -216,8 +225,8 @@ public class ModService
 
             var lastWrite = Directory.GetLastWriteTime(folder);
             var size = CalculateDirectorySize(folder);
-            var modKey = folderName;
-            var meta = LoadModMeta(folder);
+            var modKey = $"{source.Path}|{folderName}";
+            var meta = LoadModMeta(folder, folderName);
             mods.Add(new ModInfo
             {
                 ModKey = modKey,
@@ -229,9 +238,11 @@ public class ModService
                 DisplayName = string.IsNullOrWhiteSpace(meta.Name) ? folderName : meta.Name,
                 Author = meta.Author,
                 Version = meta.Version,
+                Detail = meta.Detail,
                 Remark = meta.Remark,
                 DownloadUrl = meta.DownloadUrl,
                 AuthorUrl = meta.AuthorUrl,
+                DetailUrl = string.IsNullOrWhiteSpace(meta.DetailUrl) ? meta.SocialUrl : meta.DetailUrl,
                 SocialUrl = meta.SocialUrl,
                 Description = meta.Description,
                 Size = size,
@@ -445,6 +456,22 @@ public class ModService
         {
             var targetDir = Path.Combine(destination, Path.GetFileName(directory));
             CopyDirectory(directory, targetDir);
+        }
+    }
+
+    private static void TryWriteMetaFile(string metaFile, ModMetaInfo meta)
+    {
+        try
+        {
+            var json = JsonSerializer.Serialize(meta, new JsonSerializerOptions
+            {
+                WriteIndented = true
+            });
+            File.WriteAllText(metaFile, json);
+        }
+        catch
+        {
+            // 忽略自动生成失败
         }
     }
 }
