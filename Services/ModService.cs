@@ -94,6 +94,48 @@ public class ModService
         SaveSettings();
     }
 
+    public bool SaveModMetaByPath(string folderPath, string folderName, ModMetaInfo meta)
+    {
+        if (string.IsNullOrWhiteSpace(folderPath) || !Directory.Exists(folderPath))
+        {
+            return false;
+        }
+
+        try
+        {
+            var normalizedMeta = new ModMetaInfo
+            {
+                Name = meta.Name.Trim(),
+                Version = meta.Version.Trim(),
+                Detail = meta.Detail.Trim(),
+                Remark = meta.Remark.Trim(),
+                Author = meta.Author.Trim(),
+                DownloadUrl = meta.DownloadUrl.Trim(),
+                AuthorUrl = meta.AuthorUrl.Trim(),
+                DetailUrl = meta.DetailUrl.Trim(),
+                SocialUrl = meta.SocialUrl.Trim(),
+                Description = meta.Description.Trim()
+            };
+
+            var metaFile = Path.Combine(folderPath, MetaFileName);
+            var json = JsonSerializer.Serialize(normalizedMeta, new JsonSerializerOptions
+            {
+                WriteIndented = true
+            });
+            File.WriteAllText(metaFile, json);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    public ModMetaInfo LoadModMetaByPath(string folderPath, string folderName)
+    {
+        return LoadModMeta(folderPath, folderName);
+    }
+
     public bool SaveModMeta(ModInfo mod, ModMetaInfo meta)
     {
         if (mod == null || string.IsNullOrWhiteSpace(mod.FolderPath) || !Directory.Exists(mod.FolderPath))

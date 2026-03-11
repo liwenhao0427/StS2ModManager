@@ -40,6 +40,12 @@ public partial class MainViewModel : ObservableObject
     private ModInfo? _selectedModForDetail;
 
     [ObservableProperty]
+    private string _selectedModFolderPath = string.Empty;
+
+    [ObservableProperty]
+    private string _selectedModFolderName = string.Empty;
+
+    [ObservableProperty]
     private ObservableCollection<ModInfo> _gameMods = new();
 
     [ObservableProperty]
@@ -185,7 +191,15 @@ public partial class MainViewModel : ObservableObject
     {
         if (value != null)
         {
+            SelectedModFolderPath = value.FolderPath;
+            SelectedModFolderName = value.FolderName;
             SelectedModForDetail = value;
+        }
+        else
+        {
+            SelectedModFolderPath = string.Empty;
+            SelectedModFolderName = string.Empty;
+            SelectedModForDetail = null;
         }
     }
 
@@ -193,22 +207,46 @@ public partial class MainViewModel : ObservableObject
     {
         if (value != null)
         {
+            SelectedModFolderPath = value.FolderPath;
+            SelectedModFolderName = value.FolderName;
             SelectedModForDetail = value;
+        }
+        else
+        {
+            SelectedModFolderPath = string.Empty;
+            SelectedModFolderName = string.Empty;
+            SelectedModForDetail = null;
         }
     }
 
-    partial void OnSelectedModForDetailChanged(ModInfo? value)
+    partial void OnSelectedModFolderPathChanged(string value)
     {
-        ModNameInput = value?.DisplayName ?? string.Empty;
-        ModVersionInput = value?.Version ?? string.Empty;
-        ModDetailInput = value?.Detail ?? string.Empty;
-        ModAuthorInput = value?.Author ?? string.Empty;
-        ModDownloadUrlInput = value?.DownloadUrl ?? string.Empty;
-        ModRemarkInput = value?.Remark ?? string.Empty;
-        ModAuthorUrlInput = value?.AuthorUrl ?? string.Empty;
-        ModDetailUrlInput = value?.DetailUrl ?? string.Empty;
-        ModSocialUrlInput = value?.SocialUrl ?? string.Empty;
-        ModDescriptionInput = value?.Description ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            ModNameInput = string.Empty;
+            ModVersionInput = string.Empty;
+            ModDetailInput = string.Empty;
+            ModAuthorInput = string.Empty;
+            ModDownloadUrlInput = string.Empty;
+            ModRemarkInput = string.Empty;
+            ModAuthorUrlInput = string.Empty;
+            ModDetailUrlInput = string.Empty;
+            ModSocialUrlInput = string.Empty;
+            ModDescriptionInput = string.Empty;
+            return;
+        }
+
+        var meta = _modService.LoadModMetaByPath(value, SelectedModFolderName);
+        ModNameInput = string.IsNullOrWhiteSpace(meta.Name) ? SelectedModFolderName : meta.Name;
+        ModVersionInput = meta.Version ?? string.Empty;
+        ModDetailInput = meta.Detail ?? string.Empty;
+        ModAuthorInput = meta.Author ?? string.Empty;
+        ModDownloadUrlInput = meta.DownloadUrl ?? string.Empty;
+        ModRemarkInput = meta.Remark ?? string.Empty;
+        ModAuthorUrlInput = meta.AuthorUrl ?? string.Empty;
+        ModDetailUrlInput = meta.DetailUrl ?? string.Empty;
+        ModSocialUrlInput = meta.SocialUrl ?? string.Empty;
+        ModDescriptionInput = meta.Description ?? string.Empty;
     }
 
     partial void OnSelectedSteamIdChanged(string? value)
@@ -444,13 +482,13 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void SaveModMeta()
     {
-        if (SelectedModForDetail == null)
+        if (string.IsNullOrWhiteSpace(SelectedModFolderPath))
         {
             MessageBox.Show("请先选中一个Mod", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
 
-        var success = _modService.SaveModMeta(SelectedModForDetail, new ModMetaInfo
+        var success = _modService.SaveModMetaByPath(SelectedModFolderPath, SelectedModFolderName, new ModMetaInfo
         {
             Name = ModNameInput,
             Version = ModVersionInput,
@@ -478,19 +516,19 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void ClearModMeta()
     {
-        if (SelectedModForDetail == null)
+        if (string.IsNullOrWhiteSpace(SelectedModFolderPath))
         {
             return;
         }
 
-        var success = _modService.SaveModMeta(SelectedModForDetail, new ModMetaInfo());
+        var success = _modService.SaveModMetaByPath(SelectedModFolderPath, SelectedModFolderName, new ModMetaInfo());
         if (!success)
         {
             MessageBox.Show("清空Mod信息失败，请确认该Mod目录可写", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
             return;
         }
 
-        ModNameInput = SelectedModForDetail.FolderName;
+        ModNameInput = SelectedModFolderName;
         ModVersionInput = string.Empty;
         ModDetailInput = string.Empty;
         ModAuthorInput = string.Empty;
