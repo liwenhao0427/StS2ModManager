@@ -197,25 +197,35 @@
                             </Grid.RowDefinitions>
 
                             <WrapPanel Grid.Row="0" VerticalAlignment="Center">
-                                <TextBlock Text="可用Mod（主页简版）" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TitleBrush}"/>
+                                <TextBlock Text="可用Mod" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TitleBrush}"/>
                                 <Button Content="刷新" Command="{Binding RefreshToolModsCommand}" Margin="8,0,0,0" Padding="8,3"/>
                             </WrapPanel>
 
                             <ListBox Grid.Row="1" Margin="0,8,0,0" ItemsSource="{Binding ToolMods}" SelectedItem="{Binding SelectedToolMod}">
                                 <ListBox.ItemTemplate>
                                     <DataTemplate>
-                                        <Grid Margin="2">
+                                        <Grid Margin="2,3">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="Auto"/>
                                                 <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="65"/>
                                             </Grid.ColumnDefinitions>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                            </Grid.RowDefinitions>
+
                                             <CheckBox Grid.Column="0"
+                                                      Grid.RowSpan="2"
                                                       IsChecked="{Binding IsEnabled, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                      Margin="0,0,8,0"
                                                       Command="{Binding DataContext.ToggleToolModCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                       CommandParameter="{Binding}"/>
-                                            <TextBlock Grid.Column="1" Text="{Binding DisplayName}" FontWeight="Bold" TextTrimming="CharacterEllipsis"/>
-                                            <TextBlock Grid.Column="2" Text="{Binding AuthorDisplay}" FontSize="11" Foreground="#5D7388" TextTrimming="CharacterEllipsis"/>
+                                            <StackPanel Grid.Column="1" Grid.Row="0" Orientation="Horizontal">
+                                                <TextBlock Text="{Binding DisplayName}" FontWeight="Bold" TextTrimming="CharacterEllipsis"/>
+                                                <TextBlock Text="  " />
+                                                <TextBlock Text="{Binding AuthorDisplay}" FontSize="11" Foreground="#5D7388" TextTrimming="CharacterEllipsis"/>
+                                            </StackPanel>
+                                            <TextBlock Grid.Column="1" Grid.Row="1" Text="{Binding LocationDisplay}" FontSize="11" Foreground="#5D7388" TextTrimming="CharacterEllipsis"/>
                                         </Grid>
                                     </DataTemplate>
                                 </ListBox.ItemTemplate>
@@ -245,18 +255,28 @@
                             <ListBox Grid.Row="1" Margin="0,8,0,0" ItemsSource="{Binding GameMods}" SelectedItem="{Binding SelectedGameMod}">
                                 <ListBox.ItemTemplate>
                                     <DataTemplate>
-                                        <Grid Margin="2">
+                                        <Grid Margin="2,3">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="Auto"/>
                                                 <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="65"/>
                                             </Grid.ColumnDefinitions>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                            </Grid.RowDefinitions>
+
                                             <CheckBox Grid.Column="0"
+                                                      Grid.RowSpan="2"
                                                       IsChecked="{Binding IsEnabled, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                      Margin="0,0,8,0"
                                                       Command="{Binding DataContext.ToggleGameModCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                       CommandParameter="{Binding}"/>
-                                            <TextBlock Grid.Column="1" Text="{Binding DisplayName}" FontWeight="Bold" TextTrimming="CharacterEllipsis"/>
-                                            <TextBlock Grid.Column="2" Text="{Binding AuthorDisplay}" FontSize="11" Foreground="#5D7388" TextTrimming="CharacterEllipsis"/>
+                                            <StackPanel Grid.Column="1" Grid.Row="0" Orientation="Horizontal">
+                                                <TextBlock Text="{Binding DisplayName}" FontWeight="Bold" TextTrimming="CharacterEllipsis"/>
+                                                <TextBlock Text="  " />
+                                                <TextBlock Text="{Binding AuthorDisplay}" FontSize="11" Foreground="#5D7388" TextTrimming="CharacterEllipsis"/>
+                                            </StackPanel>
+                                            <TextBlock Grid.Column="1" Grid.Row="1" Text="{Binding LocationDisplay}" FontSize="11" Foreground="#5D7388" TextTrimming="CharacterEllipsis"/>
                                         </Grid>
                                     </DataTemplate>
                                 </ListBox.ItemTemplate>
@@ -288,20 +308,20 @@
                                     <RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="74"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
 
-                                <TextBlock Grid.Row="0" Grid.Column="0" Text="名称:" Margin="0,0,8,6" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="名称:" HorizontalAlignment="Right" Margin="0,0,8,6" VerticalAlignment="Center"/>
                                 <TextBox Grid.Row="0" Grid.Column="1" Margin="0,0,0,6" Text="{Binding ModNameInput, UpdateSourceTrigger=PropertyChanged}"/>
 
-                                <TextBlock Grid.Row="1" Grid.Column="0" Text="版本:" Margin="0,0,8,6" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="版本:" HorizontalAlignment="Right" Margin="0,0,8,6" VerticalAlignment="Center"/>
                                 <TextBox Grid.Row="1" Grid.Column="1" Margin="0,0,0,6" Text="{Binding ModVersionInput, UpdateSourceTrigger=PropertyChanged}"/>
 
-                                <TextBlock Grid.Row="2" Grid.Column="0" Text="作者:" Margin="0,0,8,6" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="作者:" HorizontalAlignment="Right" Margin="0,0,8,6" VerticalAlignment="Center"/>
                                 <TextBox Grid.Row="2" Grid.Column="1" Margin="0,0,0,6" Text="{Binding ModAuthorInput, UpdateSourceTrigger=PropertyChanged}"/>
 
-                                <TextBlock Grid.Row="3" Grid.Column="0" Text="备注:" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Row="3" Grid.Column="0" Text="备注:" HorizontalAlignment="Right" Margin="0,0,8,0" VerticalAlignment="Center"/>
                                 <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding ModRemarkInput, UpdateSourceTrigger=PropertyChanged}"/>
                             </Grid>
 
@@ -313,20 +333,20 @@
                                     <RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="74"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
 
-                                <TextBlock Grid.Row="0" Grid.Column="0" Text="下载链接:" Margin="0,0,8,6" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="下载链接:" HorizontalAlignment="Right" Margin="0,0,8,6" VerticalAlignment="Center"/>
                                 <TextBox Grid.Row="0" Grid.Column="1" Margin="0,0,0,6" Text="{Binding ModDownloadUrlInput, UpdateSourceTrigger=PropertyChanged}"/>
 
-                                <TextBlock Grid.Row="1" Grid.Column="0" Text="作者链接:" Margin="0,0,8,6" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="作者链接:" HorizontalAlignment="Right" Margin="0,0,8,6" VerticalAlignment="Center"/>
                                 <TextBox Grid.Row="1" Grid.Column="1" Margin="0,0,0,6" Text="{Binding ModAuthorUrlInput, UpdateSourceTrigger=PropertyChanged}"/>
 
-                                <TextBlock Grid.Row="2" Grid.Column="0" Text="社交链接:" Margin="0,0,8,6" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="社交链接:" HorizontalAlignment="Right" Margin="0,0,8,6" VerticalAlignment="Center"/>
                                 <TextBox Grid.Row="2" Grid.Column="1" Margin="0,0,0,6" Text="{Binding ModSocialUrlInput, UpdateSourceTrigger=PropertyChanged}"/>
 
-                                <TextBlock Grid.Row="3" Grid.Column="0" Text="详情:" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Row="3" Grid.Column="0" Text="详情:" HorizontalAlignment="Right" Margin="0,0,8,0" VerticalAlignment="Center"/>
                                 <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding ModDescriptionInput, UpdateSourceTrigger=PropertyChanged}"/>
                             </Grid>
 
