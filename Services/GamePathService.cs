@@ -51,7 +51,7 @@ public class GamePathService
 
     public static string ToolModsDir => Path.Combine(ToolBaseDir, "Mods");
 
-    public static string BackupDir => Path.Combine(ToolBaseDir, "Backup");
+    public static string BackupDir => Path.Combine(AppDataPath, "Backup");
 
     public static string ConfigDir => Path.Combine(ToolBaseDir, "Config");
 

@@ -22,6 +22,7 @@ public class SaveBackupMeta
 {
     public string Type { get; set; } = "slot";
     public string Name { get; set; } = string.Empty;
+    public string SteamId { get; set; } = string.Empty;
 }
 
 public class SaveService
@@ -77,8 +78,15 @@ public class SaveService
         }
 
         var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-        var backupRoot = Path.Combine(GamePathService.BackupDir, "Saves", timestamp, steamId);
+        var backupFolderKey = $"{timestamp}_{steamId}";
+        var backupRoot = Path.Combine(GamePathService.BackupDir, "Saves", backupFolderKey);
         Directory.CreateDirectory(backupRoot);
+        WriteBackupMeta(backupRoot, new SaveBackupMeta
+        {
+            Type = "slot",
+            Name = "自动备份",
+            SteamId = steamId
+        });
 
         foreach (var slot in slots)
         {
@@ -125,21 +133,35 @@ public class SaveService
         }
 
         var list = new List<SaveBackupInfo>();
-        foreach (var timestampDir in Directory.GetDirectories(backupsRoot, "*", SearchOption.TopDirectoryOnly))
+        foreach (var backupDir in Directory.GetDirectories(backupsRoot, "*", SearchOption.TopDirectoryOnly))
         {
-            var folderKey = Path.GetFileName(timestampDir);
+            var folderKey = Path.GetFileName(backupDir);
             if (string.IsNullOrWhiteSpace(folderKey))
             {
                 continue;
             }
 
-            var backupTime = TryParseTimestamp(folderKey) ?? Directory.GetLastWriteTime(timestampDir);
-            var backupMeta = ReadBackupMeta(timestampDir);
+            var backupTime = TryParseTimestamp(folderKey) ?? Directory.GetLastWriteTime(backupDir);
+            var backupMeta = ReadBackupMeta(backupDir);
             var backupName = string.IsNullOrWhiteSpace(backupMeta?.Name)
                 ? GetDefaultBackupName(folderKey)
                 : backupMeta!.Name;
+            var backupSteamId = !string.IsNullOrWhiteSpace(backupMeta?.SteamId)
+                ? backupMeta!.SteamId
+                : ParseSteamIdFromFolderKey(folderKey);
 
-            foreach (var steamBackupDir in Directory.GetDirectories(timestampDir, "*", SearchOption.TopDirectoryOnly))
+            if (!string.IsNullOrWhiteSpace(backupSteamId))
+            {
+                if (!string.IsNullOrWhiteSpace(steamId) && !string.Equals(steamId, backupSteamId, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                AppendBackupEntries(list, backupDir, folderKey, backupName, backupTime, backupSteamId, backupMeta);
+                continue;
+            }
+
+            foreach (var steamBackupDir in Directory.GetDirectories(backupDir, "*", SearchOption.TopDirectoryOnly))
             {
                 var id = Path.GetFileName(steamBackupDir);
                 if (string.IsNullOrWhiteSpace(id) || !long.TryParse(id, out _))
@@ -152,79 +174,7 @@ public class SaveService
                     continue;
                 }
 
-                if (string.Equals(backupMeta?.Type, "full", StringComparison.OrdinalIgnoreCase))
-                {
-                    list.Add(new SaveBackupInfo
-                    {
-                        BackupFolderKey = folderKey,
-                        BackupName = backupName,
-                        BackupTime = backupTime,
-                        SteamId = id,
-                        BackupPath = steamBackupDir,
-                        IsFullBackup = true
-                    });
-                    continue;
-                }
-
-                var anySlot = false;
-                foreach (var slotDir in Directory.GetDirectories(steamBackupDir, "profile*", SearchOption.TopDirectoryOnly))
-                {
-                    if (!TryParseSlot(slotDir, out var slotId))
-                    {
-                        continue;
-                    }
-
-                    anySlot = true;
-                    list.Add(new SaveBackupInfo
-                    {
-                        BackupFolderKey = folderKey,
-                        BackupName = backupName,
-                        BackupTime = backupTime,
-                        SteamId = id,
-                        BackupPath = slotDir,
-                        IsFullBackup = false,
-                        SlotId = slotId,
-                        IsModdedBackup = false
-                    });
-                }
-
-                var moddedDir = Path.Combine(steamBackupDir, "modded");
-                if (Directory.Exists(moddedDir))
-                {
-                    foreach (var slotDir in Directory.GetDirectories(moddedDir, "profile*", SearchOption.TopDirectoryOnly))
-                    {
-                        if (!TryParseSlot(slotDir, out var slotId))
-                        {
-                            continue;
-                        }
-
-                        anySlot = true;
-                        list.Add(new SaveBackupInfo
-                        {
-                            BackupFolderKey = folderKey,
-                            BackupName = backupName,
-                            BackupTime = backupTime,
-                            SteamId = id,
-                            BackupPath = slotDir,
-                            IsFullBackup = false,
-                            SlotId = slotId,
-                            IsModdedBackup = true
-                        });
-                    }
-                }
-
-                if (!anySlot)
-                {
-                    list.Add(new SaveBackupInfo
-                    {
-                        BackupFolderKey = folderKey,
-                        BackupName = backupName,
-                        BackupTime = backupTime,
-                        SteamId = id,
-                        BackupPath = steamBackupDir,
-                        IsFullBackup = true
-                    });
-                }
+                AppendBackupEntries(list, steamBackupDir, folderKey, backupName, backupTime, id, backupMeta);
             }
         }
 
@@ -250,7 +200,7 @@ public class SaveService
         Directory.CreateDirectory(GetSteamBasePath());
 
         var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-        var rescueRoot = Path.Combine(GamePathService.BackupDir, "Saves", $"restore_before_{timestamp}", backup.SteamId);
+        var rescueRoot = Path.Combine(GamePathService.BackupDir, "Saves", $"restore_before_{timestamp}_{backup.SteamId}");
 
         if (backup.IsFullBackup)
         {
@@ -273,6 +223,15 @@ public class SaveService
             CopyDirectory(backup.BackupPath, steamIdPath);
             result.Success = true;
             result.CopiedCount = 1;
+            if (Directory.Exists(rescueRoot))
+            {
+                WriteBackupMeta(rescueRoot, new SaveBackupMeta
+                {
+                    Type = "restore",
+                    Name = "恢复前备份",
+                    SteamId = backup.SteamId
+                });
+            }
             result.BackupPath = Directory.Exists(rescueRoot) ? rescueRoot : string.Empty;
             return result;
         }
@@ -311,6 +270,15 @@ public class SaveService
 
         result.Success = true;
         result.CopiedCount = 1;
+        if (Directory.Exists(rescueRoot))
+        {
+            WriteBackupMeta(rescueRoot, new SaveBackupMeta
+            {
+                Type = "restore",
+                Name = "恢复前备份",
+                SteamId = backup.SteamId
+            });
+        }
         result.BackupPath = Directory.Exists(rescueRoot) ? rescueRoot : string.Empty;
         return result;
     }
@@ -327,16 +295,17 @@ public class SaveService
         var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
         var safeName = SanitizeBackupName(backupName);
         var backupFolderKey = string.IsNullOrWhiteSpace(safeName)
-            ? $"manual_{timestamp}"
-            : $"manual_{timestamp}_{safeName}";
+            ? $"manual_{timestamp}_{steamId}"
+            : $"manual_{timestamp}_{steamId}_{safeName}";
         var backupRoot = Path.Combine(GamePathService.BackupDir, "Saves", backupFolderKey);
-        var backupPath = Path.Combine(backupRoot, steamId);
+        var backupPath = backupRoot;
 
         CopyDirectory(steamIdPath, backupPath);
         WriteBackupMeta(backupRoot, new SaveBackupMeta
         {
             Type = "full",
-            Name = string.IsNullOrWhiteSpace(backupName) ? "手动备份" : backupName.Trim()
+            Name = string.IsNullOrWhiteSpace(backupName) ? "手动备份" : backupName.Trim(),
+            SteamId = steamId
         });
 
         result.Success = true;
@@ -428,6 +397,15 @@ public class SaveService
 
     private static DateTime? TryParseTimestamp(string text)
     {
+        if (text.Length >= 15)
+        {
+            var prefix = text[..15];
+            if (DateTime.TryParseExact(prefix, "yyyyMMdd_HHmmss", null, System.Globalization.DateTimeStyles.None, out var prefixValue))
+            {
+                return prefixValue;
+            }
+        }
+
         if (text.StartsWith("manual_", StringComparison.OrdinalIgnoreCase))
         {
             var raw = text.Split('_');
@@ -465,6 +443,109 @@ public class SaveService
 
         var value = name["profile".Length..];
         return int.TryParse(value, out slotId) && slotId > 0;
+    }
+
+    private static string ParseSteamIdFromFolderKey(string folderKey)
+    {
+        if (string.IsNullOrWhiteSpace(folderKey))
+        {
+            return string.Empty;
+        }
+
+        var parts = folderKey.Split('_', StringSplitOptions.RemoveEmptyEntries);
+        for (var i = parts.Length - 1; i >= 0; i--)
+        {
+            if (long.TryParse(parts[i], out _))
+            {
+                return parts[i];
+            }
+        }
+
+        return string.Empty;
+    }
+
+    private static void AppendBackupEntries(
+        List<SaveBackupInfo> list,
+        string backupPath,
+        string folderKey,
+        string backupName,
+        DateTime backupTime,
+        string steamId,
+        SaveBackupMeta? backupMeta)
+    {
+        if (string.Equals(backupMeta?.Type, "full", StringComparison.OrdinalIgnoreCase))
+        {
+            list.Add(new SaveBackupInfo
+            {
+                BackupFolderKey = folderKey,
+                BackupName = backupName,
+                BackupTime = backupTime,
+                SteamId = steamId,
+                BackupPath = backupPath,
+                IsFullBackup = true
+            });
+            return;
+        }
+
+        var anySlot = false;
+        foreach (var slotDir in Directory.GetDirectories(backupPath, "profile*", SearchOption.TopDirectoryOnly))
+        {
+            if (!TryParseSlot(slotDir, out var slotId))
+            {
+                continue;
+            }
+
+            anySlot = true;
+            list.Add(new SaveBackupInfo
+            {
+                BackupFolderKey = folderKey,
+                BackupName = backupName,
+                BackupTime = backupTime,
+                SteamId = steamId,
+                BackupPath = slotDir,
+                IsFullBackup = false,
+                SlotId = slotId,
+                IsModdedBackup = false
+            });
+        }
+
+        var moddedDir = Path.Combine(backupPath, "modded");
+        if (Directory.Exists(moddedDir))
+        {
+            foreach (var slotDir in Directory.GetDirectories(moddedDir, "profile*", SearchOption.TopDirectoryOnly))
+            {
+                if (!TryParseSlot(slotDir, out var slotId))
+                {
+                    continue;
+                }
+
+                anySlot = true;
+                list.Add(new SaveBackupInfo
+                {
+                    BackupFolderKey = folderKey,
+                    BackupName = backupName,
+                    BackupTime = backupTime,
+                    SteamId = steamId,
+                    BackupPath = slotDir,
+                    IsFullBackup = false,
+                    SlotId = slotId,
+                    IsModdedBackup = true
+                });
+            }
+        }
+
+        if (!anySlot)
+        {
+            list.Add(new SaveBackupInfo
+            {
+                BackupFolderKey = folderKey,
+                BackupName = backupName,
+                BackupTime = backupTime,
+                SteamId = steamId,
+                BackupPath = backupPath,
+                IsFullBackup = true
+            });
+        }
     }
 
     private static string SanitizeBackupName(string backupName)

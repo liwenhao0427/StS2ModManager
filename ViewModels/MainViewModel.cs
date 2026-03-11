@@ -772,7 +772,7 @@ public partial class MainViewModel : ObservableObject
             $"Steam ID: {SelectedSteamId}\n" +
             $"方向: {directionText}\n" +
             $"栏位: {SelectedSaveSlot.Label}\n\n" +
-            "会先把目标栏位移动到 Backup/Saves/时间戳，再执行复制。\n" +
+            "会先把目标栏位备份到存档目录同级的 Backup/Saves，再执行复制。\n" +
             "是否继续？",
             "确认复制",
             MessageBoxButton.YesNo,
