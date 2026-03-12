@@ -100,8 +100,13 @@ public class GamePathService
 
     public string? GetGameModsDir(string gamePath)
     {
+        if (string.IsNullOrWhiteSpace(gamePath))
+        {
+            return null;
+        }
+
         var modsPath = Path.Combine(gamePath, "mods");
-        return Directory.Exists(modsPath) ? modsPath : null;
+        return modsPath;
     }
 
     public string GetGamePendingModsDir(string gamePath)
