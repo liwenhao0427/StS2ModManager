@@ -54,3 +54,7 @@
 - 当用户说“发布”时，默认指同时产出两个版本：
   - 依赖 .NET 运行时版本（framework-dependent）
   - 包含依赖版本（self-contained）
+- 发布输出目录固定为：`C:\Users\temp\项目\杀戮尖塔2Mod\Slay the Spire 2\StS2ModManager\ReleaseSingle`
+- 发布文件命名约定：
+  - 依赖 .NET 运行时版本命名为：`StS2ModManager.依赖.Net环境版本.exe`
+  - 包含依赖版本命名为：`StS2ModManager.exe`
