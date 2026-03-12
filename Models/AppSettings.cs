@@ -6,4 +6,5 @@ public class AppSettings
     public Dictionary<string, string> ModAliases { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     public string? PreferredSteamId { get; set; }
     public string PreferredSaveSlot { get; set; } = "1";
+    public string LanguageMode { get; set; } = "system";
 }

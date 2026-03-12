@@ -34,6 +34,10 @@ public class SettingsService
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
             settings.ModAliases ??= new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            if (string.IsNullOrWhiteSpace(settings.LanguageMode))
+            {
+                settings.LanguageMode = "system";
+            }
             return settings;
         }
         catch

@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
+using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Data;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -12,10 +13,13 @@ namespace StS2ModManager.ViewModels;
 
 public partial class MainViewModel : ObservableObject
 {
+    private static readonly Regex TagSplitRegex = new("[,;|/\\n\\r，、]+", RegexOptions.Compiled);
+
     private readonly GamePathService _pathService;
     private readonly ModService _modService;
     private readonly SaveService _saveService;
     private readonly GameLaunchService _launchService;
+    private readonly LocalizationService _localizationService;
 
     [ObservableProperty]
     private ObservableCollection<string> _detectedPaths = new();
@@ -24,7 +28,7 @@ public partial class MainViewModel : ObservableObject
     private string? _selectedPath;
 
     [ObservableProperty]
-    private string _gamePathStatus = "未选择";
+    private string _gamePathStatus = string.Empty;
 
     [ObservableProperty]
     private ObservableCollection<ModSourceInfo> _modSources = new();
@@ -93,6 +97,18 @@ public partial class MainViewModel : ObservableObject
     private string _modTagInput = string.Empty;
 
     [ObservableProperty]
+    private ObservableCollection<string> _modTags = new();
+
+    [ObservableProperty]
+    private string _newTagInput = string.Empty;
+
+    [ObservableProperty]
+    private string? _selectedTagSuggestion;
+
+    [ObservableProperty]
+    private ObservableCollection<string> _availableTags = new();
+
+    [ObservableProperty]
     private string _modVersionInput = string.Empty;
 
     [ObservableProperty]
@@ -126,10 +142,18 @@ public partial class MainViewModel : ObservableObject
     private ObservableCollection<string> _tagFilters = new();
 
     [ObservableProperty]
-    private string _selectedTagFilter = "全部标签";
+    private string _selectedTagFilter = string.Empty;
 
     [ObservableProperty]
-    private string _statusMessage = "就绪";
+    private ObservableCollection<LanguageOption> _languageOptions = new();
+
+    [ObservableProperty]
+    private LanguageOption? _selectedLanguageOption;
+
+    [ObservableProperty]
+    private string _statusMessage = string.Empty;
+
+    public LocalizationService Loc => _localizationService;
 
     public ICollectionView FilteredToolModsView { get; }
 
@@ -140,6 +164,13 @@ public partial class MainViewModel : ObservableObject
         _modService = new ModService(_pathService, settingsService);
         _saveService = new SaveService();
         _launchService = new GameLaunchService();
+        _localizationService = new LocalizationService(_modService.Settings.LanguageMode);
+        _localizationService.LanguageChanged += HandleLanguageChanged;
+        SaveBackupInfo.Localize = L;
+
+        LanguageOptions = new ObservableCollection<LanguageOption>(_localizationService.GetLanguageOptions());
+        SelectedLanguageOption = LanguageOptions.FirstOrDefault(x => string.Equals(x.Key, _localizationService.LanguageMode, StringComparison.OrdinalIgnoreCase))
+                                 ?? LanguageOptions.FirstOrDefault();
 
         FilteredToolModsView = CollectionViewSource.GetDefaultView(ToolMods);
         FilteredToolModsView.Filter = FilterToolMod;
@@ -147,6 +178,7 @@ public partial class MainViewModel : ObservableObject
         GamePathService.EnsureDirectoriesExist();
         InitializeSaveOptions();
         Initialize();
+        GamePathStatus = L("Path.Status.None");
     }
 
     private void Initialize()
@@ -157,23 +189,25 @@ public partial class MainViewModel : ObservableObject
         RefreshToolMods();
         RefreshGameMods();
 
-        StatusMessage = DetectedPaths.Count > 0 ? $"已找到 {DetectedPaths.Count} 个游戏路径" : "未找到游戏，请手动选择";
+        StatusMessage = DetectedPaths.Count > 0
+            ? string.Format(L("Status.PathFound"), DetectedPaths.Count)
+            : L("Status.PathNotFound");
     }
 
     private void InitializeSaveOptions()
     {
         SaveDirections = new ObservableCollection<SaveOptionItem>
         {
-            new() { Key = "normal_to_mod", Label = "非Mod存档 -> Mod存档" },
-            new() { Key = "mod_to_normal", Label = "Mod存档 -> 非Mod存档" }
+            new() { Key = "normal_to_mod", Label = L("Save.Direction.NormalToMod") },
+            new() { Key = "mod_to_normal", Label = L("Save.Direction.ModToNormal") }
         };
 
         SaveSlots = new ObservableCollection<SaveOptionItem>
         {
-            new() { Key = "1", Label = "栏位1" },
-            new() { Key = "2", Label = "栏位2" },
-            new() { Key = "3", Label = "栏位3" },
-            new() { Key = "all", Label = "全部栏位" }
+            new() { Key = "1", Label = L("Save.Slot1") },
+            new() { Key = "2", Label = L("Save.Slot2") },
+            new() { Key = "3", Label = L("Save.Slot3") },
+            new() { Key = "all", Label = L("Save.SlotAll") }
         };
 
         SelectedSaveDirection = SaveDirections[0];
@@ -182,9 +216,9 @@ public partial class MainViewModel : ObservableObject
 
         RestoreTargets = new ObservableCollection<SaveOptionItem>
         {
-            new() { Key = "auto", Label = "原路径（默认）" },
-            new() { Key = "normal", Label = "恢复到非Mod存档" },
-            new() { Key = "modded", Label = "恢复到Mod存档" }
+            new() { Key = "auto", Label = L("Save.Restore.Auto") },
+            new() { Key = "normal", Label = L("Save.Restore.Normal") },
+            new() { Key = "modded", Label = L("Save.Restore.Modded") }
         };
         SelectedRestoreTarget = RestoreTargets[0];
     }
@@ -193,20 +227,20 @@ public partial class MainViewModel : ObservableObject
     {
         if (string.IsNullOrWhiteSpace(value))
         {
-            GamePathStatus = "未选择";
+            GamePathStatus = L("Path.Status.None");
             return;
         }
 
         if (_pathService.IsValidGamePath(value))
         {
-            GamePathStatus = "✓ 已找到";
+            GamePathStatus = L("Path.Status.Valid");
             RefreshModSources();
             RefreshToolMods();
             RefreshGameMods();
             return;
         }
 
-        GamePathStatus = "✗ 无效路径";
+        GamePathStatus = L("Path.Status.Invalid");
     }
 
     partial void OnSelectedToolModChanged(ModInfo? value)
@@ -254,6 +288,8 @@ public partial class MainViewModel : ObservableObject
         {
             ModNameInput = string.Empty;
             ModTagInput = string.Empty;
+            ModTags.Clear();
+            NewTagInput = string.Empty;
             ModVersionInput = string.Empty;
             ModDetailInput = string.Empty;
             ModAuthorInput = string.Empty;
@@ -269,7 +305,8 @@ public partial class MainViewModel : ObservableObject
 
         var meta = _modService.LoadModMetaByPath(value, SelectedModFolderName);
         ModNameInput = string.IsNullOrWhiteSpace(meta.Name) ? SelectedModFolderName : meta.Name;
-        ModTagInput = meta.Tag ?? string.Empty;
+        SetModTags(ParseTags(meta.Tag));
+        NewTagInput = string.Empty;
         ModVersionInput = meta.Version ?? string.Empty;
         ModDetailInput = meta.Detail ?? string.Empty;
         ModAuthorInput = meta.Author ?? string.Empty;
@@ -302,6 +339,18 @@ public partial class MainViewModel : ObservableObject
         _modService.SaveSettings();
     }
 
+    partial void OnSelectedLanguageOptionChanged(LanguageOption? value)
+    {
+        if (value == null)
+        {
+            return;
+        }
+
+        _localizationService.SetLanguageMode(value.Key);
+        _modService.Settings.LanguageMode = value.Key;
+        _modService.SaveSettings();
+    }
+
     partial void OnModSearchTextChanged(string value)
     {
         RefreshToolModsFilter();
@@ -310,6 +359,98 @@ public partial class MainViewModel : ObservableObject
     partial void OnSelectedTagFilterChanged(string value)
     {
         RefreshToolModsFilter();
+    }
+
+    [RelayCommand]
+    private void AddNewTag()
+    {
+        if (!TryAppendTag(NewTagInput))
+        {
+            return;
+        }
+
+        NewTagInput = string.Empty;
+        SaveModMetaCore(showNoSelectionWarning: false, showErrorDialog: true);
+    }
+
+    partial void OnSelectedTagSuggestionChanged(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return;
+        }
+
+        if (TryAppendTag(value))
+        {
+            NewTagInput = string.Empty;
+            SaveModMetaCore(showNoSelectionWarning: false, showErrorDialog: true);
+        }
+
+        SelectedTagSuggestion = null;
+    }
+
+    [RelayCommand]
+    private void RemoveTag(string? tag)
+    {
+        if (string.IsNullOrWhiteSpace(tag))
+        {
+            return;
+        }
+
+        var target = tag.Trim();
+        var hit = ModTags.FirstOrDefault(x => string.Equals(x, target, StringComparison.OrdinalIgnoreCase));
+        if (string.IsNullOrWhiteSpace(hit))
+        {
+            return;
+        }
+
+        ModTags.Remove(hit);
+        ModTagInput = JoinTags(ModTags);
+        SaveModMetaCore(showNoSelectionWarning: false, showErrorDialog: true);
+    }
+
+    private void HandleLanguageChanged()
+    {
+        var selectedLanguageKey = SelectedLanguageOption?.Key ?? _localizationService.LanguageMode;
+        var selectedSlotKey = SelectedSaveSlot?.Key;
+        var selectedDirectionKey = SelectedSaveDirection?.Key;
+        var selectedRestoreKey = SelectedRestoreTarget?.Key;
+
+        LanguageOptions = new ObservableCollection<LanguageOption>(_localizationService.GetLanguageOptions());
+        SelectedLanguageOption = LanguageOptions.FirstOrDefault(x => string.Equals(x.Key, selectedLanguageKey, StringComparison.OrdinalIgnoreCase))
+                                 ?? LanguageOptions.FirstOrDefault();
+
+        InitializeSaveOptions();
+
+        if (!string.IsNullOrWhiteSpace(selectedSlotKey))
+        {
+            SelectedSaveSlot = SaveSlots.FirstOrDefault(x => string.Equals(x.Key, selectedSlotKey, StringComparison.OrdinalIgnoreCase)) ?? SelectedSaveSlot;
+        }
+
+        if (!string.IsNullOrWhiteSpace(selectedDirectionKey))
+        {
+            SelectedSaveDirection = SaveDirections.FirstOrDefault(x => string.Equals(x.Key, selectedDirectionKey, StringComparison.OrdinalIgnoreCase)) ?? SelectedSaveDirection;
+        }
+
+        if (!string.IsNullOrWhiteSpace(selectedRestoreKey))
+        {
+            SelectedRestoreTarget = RestoreTargets.FirstOrDefault(x => string.Equals(x.Key, selectedRestoreKey, StringComparison.OrdinalIgnoreCase)) ?? SelectedRestoreTarget;
+        }
+
+        UpdateTagFilters();
+        RefreshToolModsFilter();
+        RefreshSaveBackups();
+
+        if (string.IsNullOrWhiteSpace(SelectedPath))
+        {
+            GamePathStatus = L("Path.Status.None");
+        }
+        else
+        {
+            GamePathStatus = _pathService.IsValidGamePath(SelectedPath)
+                ? L("Path.Status.Valid")
+                : L("Path.Status.Invalid");
+        }
     }
 
     [RelayCommand]
@@ -327,7 +468,7 @@ public partial class MainViewModel : ObservableObject
             SelectedPath = DetectedPaths[0];
         }
 
-        StatusMessage = $"已刷新，找到 {paths.Count} 个路径";
+        StatusMessage = string.Format(L("Status.PathRefresh"), paths.Count);
     }
 
     [RelayCommand]
@@ -335,7 +476,7 @@ public partial class MainViewModel : ObservableObject
     {
         var dialog = new Microsoft.Win32.OpenFolderDialog
         {
-            Title = "选择游戏目录"
+            Title = L("Dialog.SelectGameDirectory")
         };
 
         if (dialog.ShowDialog() != true)
@@ -345,7 +486,7 @@ public partial class MainViewModel : ObservableObject
 
         if (!_pathService.IsValidGamePath(dialog.FolderName))
         {
-            MessageBox.Show("选择的目录不是有效的游戏目录", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show(L("Msg.InvalidGameDirectory"), L("Dialog.Title.Tip"), MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
 
@@ -362,7 +503,7 @@ public partial class MainViewModel : ObservableObject
     {
         if (string.IsNullOrWhiteSpace(SelectedPath))
         {
-            MessageBox.Show("请先选择游戏路径", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show(L("Msg.SelectGamePathFirst"), L("Dialog.Title.Tip"), MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
 
@@ -377,7 +518,7 @@ public partial class MainViewModel : ObservableObject
     {
         if (string.IsNullOrWhiteSpace(SelectedPath))
         {
-            MessageBox.Show("请先选择游戏路径", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show(L("Msg.SelectGamePathFirst"), L("Dialog.Title.Tip"), MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
 
@@ -391,7 +532,7 @@ public partial class MainViewModel : ObservableObject
     {
         if (string.IsNullOrWhiteSpace(SelectedPath))
         {
-            MessageBox.Show("请先选择游戏路径", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show(L("Msg.SelectGamePathFirst"), L("Dialog.Title.Tip"), MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
 
@@ -412,7 +553,7 @@ public partial class MainViewModel : ObservableObject
     {
         var dialog = new Microsoft.Win32.OpenFolderDialog
         {
-            Title = "选择Mod来源目录"
+            Title = L("Dialog.SelectModSourceDirectory")
         };
 
         if (dialog.ShowDialog() != true)
@@ -424,11 +565,11 @@ public partial class MainViewModel : ObservableObject
         {
             RefreshModSources();
             RefreshToolMods();
-            StatusMessage = "已添加自定义Mod目录";
+            StatusMessage = L("Status.ModSourceAdded");
             return;
         }
 
-        MessageBox.Show("目录无效或已存在", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+        MessageBox.Show(L("Msg.InvalidOrDuplicateSource"), L("Dialog.Title.Tip"), MessageBoxButton.OK, MessageBoxImage.Information);
     }
 
     [RelayCommand]
@@ -436,7 +577,7 @@ public partial class MainViewModel : ObservableObject
     {
         if (SelectedToolMod == null)
         {
-            MessageBox.Show("请先选中某个Mod后再移除其来源目录", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show(L("Msg.SelectModToRemoveSource"), L("Dialog.Title.Tip"), MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
 
@@ -444,14 +585,14 @@ public partial class MainViewModel : ObservableObject
         var canRemove = _modService.Settings.CustomModSourceDirs.Any(x => string.Equals(x, sourcePath, StringComparison.OrdinalIgnoreCase));
         if (!canRemove)
         {
-            MessageBox.Show("当前来源为系统目录，不能移除", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+            MessageBox.Show(L("Msg.SystemSourceCannotRemove"), L("Dialog.Title.Tip"), MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
 
         _modService.RemoveCustomModSource(sourcePath);
         RefreshModSources();
         RefreshToolMods();
-        StatusMessage = "已移除来源目录";
+        StatusMessage = L("Status.ModSourceRemoved");
     }
 
     [RelayCommand]
@@ -459,7 +600,7 @@ public partial class MainViewModel : ObservableObject
     {
         if (SelectedToolMod == null)
         {
-            MessageBox.Show("请先选中某个Mod", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show(L("Msg.SelectModAny"), L("Dialog.Title.Tip"), MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
 
@@ -529,11 +670,28 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void SaveModMeta()
     {
+        SaveModMetaCore(showNoSelectionWarning: true, showErrorDialog: true);
+    }
+
+    [RelayCommand]
+    private void SaveModMetaOnBlur()
+    {
+        SaveModMetaCore(showNoSelectionWarning: false, showErrorDialog: true);
+    }
+
+    private bool SaveModMetaCore(bool showNoSelectionWarning, bool showErrorDialog)
+    {
         if (string.IsNullOrWhiteSpace(SelectedModFolderPath))
         {
-            MessageBox.Show("请先选中一个Mod", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
-            return;
+            if (showNoSelectionWarning)
+            {
+                MessageBox.Show(L("Msg.SelectModFirst"), L("Dialog.Title.Tip"), MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+
+            return false;
         }
+
+        ModTagInput = JoinTags(ModTags);
 
         var success = _modService.SaveModMetaByPath(SelectedModFolderPath, SelectedModFolderName, new ModMetaInfo
         {
@@ -552,13 +710,65 @@ public partial class MainViewModel : ObservableObject
 
         if (!success)
         {
-            MessageBox.Show("写入Mod信息失败，请确认该Mod目录可写", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
-            return;
+            if (showErrorDialog)
+            {
+                MessageBox.Show(L("Msg.ModMetaSaveFailed"), L("Dialog.Title.Error"), MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+
+            return false;
         }
 
-        RefreshToolMods();
+        ReloadModMetaAndViews();
+        StatusMessage = L("Status.ModMetaSaved");
+        return true;
+    }
+
+    private void ReloadModMetaAndViews()
+    {
+        var path = SelectedModFolderPath;
+        var folderName = SelectedModFolderName;
+        var meta = _modService.LoadModMetaByPath(path, folderName);
+
+        ModNameInput = string.IsNullOrWhiteSpace(meta.Name) ? folderName : meta.Name;
+        SetModTags(ParseTags(meta.Tag));
+        ModVersionInput = meta.Version ?? string.Empty;
+        ModDetailInput = meta.Detail ?? string.Empty;
+        ModAuthorInput = meta.Author ?? string.Empty;
+        ModDownloadUrlInput = meta.DownloadUrl ?? string.Empty;
+        ModRemarkInput = meta.Remark ?? string.Empty;
+        ModAuthorUrlInput = meta.AuthorUrl ?? string.Empty;
+        ModDetailUrlInput = meta.DetailUrl ?? string.Empty;
+        ModSocialUrlInput = meta.SocialUrl ?? string.Empty;
+        ModDescriptionInput = meta.Description ?? string.Empty;
+        SelectedModUpdatedDisplay = Directory.Exists(path)
+            ? Directory.GetLastWriteTime(path).ToString("yyyy-MM-dd HH:mm")
+            : string.Empty;
+
+        var displayName = string.IsNullOrWhiteSpace(meta.Name) ? folderName : meta.Name;
+        var relatedMods = ToolMods
+            .Where(x => string.Equals(x.FolderPath, path, StringComparison.OrdinalIgnoreCase))
+            .Concat(GameMods.Where(x => string.Equals(x.FolderPath, path, StringComparison.OrdinalIgnoreCase)))
+            .Distinct()
+            .ToList();
+
+        foreach (var item in relatedMods)
+        {
+            item.DisplayName = displayName;
+            item.Tag = ModTagInput;
+            item.Version = meta.Version ?? string.Empty;
+            item.Detail = meta.Detail ?? string.Empty;
+            item.Author = meta.Author ?? string.Empty;
+            item.DownloadUrl = meta.DownloadUrl ?? string.Empty;
+            item.Remark = meta.Remark ?? string.Empty;
+            item.AuthorUrl = meta.AuthorUrl ?? string.Empty;
+            item.DetailUrl = meta.DetailUrl ?? string.Empty;
+            item.SocialUrl = meta.SocialUrl ?? string.Empty;
+            item.Description = meta.Description ?? string.Empty;
+        }
+
+        UpdateTagFilters();
+        RefreshToolModsFilter();
         RefreshGameMods();
-        StatusMessage = "Mod信息已保存到该Mod目录";
     }
 
     [RelayCommand]
@@ -572,24 +782,12 @@ public partial class MainViewModel : ObservableObject
         var success = _modService.SaveModMetaByPath(SelectedModFolderPath, SelectedModFolderName, new ModMetaInfo());
         if (!success)
         {
-            MessageBox.Show("清空Mod信息失败，请确认该Mod目录可写", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show(L("Msg.ModMetaResetFailed"), L("Dialog.Title.Error"), MessageBoxButton.OK, MessageBoxImage.Error);
             return;
         }
 
-        ModNameInput = SelectedModFolderName;
-        ModTagInput = string.Empty;
-        ModVersionInput = string.Empty;
-        ModDetailInput = string.Empty;
-        ModAuthorInput = string.Empty;
-        ModDownloadUrlInput = string.Empty;
-        ModRemarkInput = string.Empty;
-        ModAuthorUrlInput = string.Empty;
-        ModDetailUrlInput = string.Empty;
-        ModSocialUrlInput = string.Empty;
-        ModDescriptionInput = string.Empty;
-        RefreshToolMods();
-        RefreshGameMods();
-        StatusMessage = "Mod信息已重置";
+        ReloadModMetaAndViews();
+        StatusMessage = L("Status.ModMetaReset");
     }
 
     [RelayCommand]
@@ -614,7 +812,7 @@ public partial class MainViewModel : ObservableObject
         }
         catch
         {
-            MessageBox.Show("无法打开链接，请检查地址格式", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show(L("Msg.OpenUrlFailed"), L("Dialog.Title.Tip"), MessageBoxButton.OK, MessageBoxImage.Warning);
         }
     }
 
@@ -635,22 +833,22 @@ public partial class MainViewModel : ObservableObject
                 if (!_modService.ApplySingleMod(SelectedPath, mod))
                 {
                     mod.IsEnabled = false;
-                    MessageBox.Show("生效失败，请检查Mod目录", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                    MessageBox.Show(L("Msg.ModEnableFailed"), L("Dialog.Title.Error"), MessageBoxButton.OK, MessageBoxImage.Error);
                     return;
                 }
 
-                StatusMessage = $"已生效 {mod.DisplayName}";
+                StatusMessage = F("Status.ModEnabled", mod.DisplayName);
             }
             else
             {
                 if (!_modService.MoveGameModToPendingByFolderName(SelectedPath, mod.FolderName))
                 {
                     mod.IsEnabled = true;
-                    MessageBox.Show("取消生效失败，未找到游戏内对应Mod", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    MessageBox.Show(L("Msg.ModDisableFailed"), L("Dialog.Title.Tip"), MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
 
-                StatusMessage = $"已取消生效 {mod.DisplayName}";
+                StatusMessage = F("Status.ModDisabled", mod.DisplayName);
             }
 
             RefreshModSources();
@@ -660,7 +858,7 @@ public partial class MainViewModel : ObservableObject
         catch (Exception ex)
         {
             mod.IsEnabled = !mod.IsEnabled;
-            MessageBox.Show($"操作失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show(F("Msg.OperationFailed", ex.Message), L("Dialog.Title.Error"), MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 
@@ -681,17 +879,17 @@ public partial class MainViewModel : ObservableObject
                 RefreshModSources();
                 RefreshToolMods();
                 RefreshGameMods();
-                StatusMessage = $"已移出 {mod.DisplayName} 到待生效目录";
+                StatusMessage = F("Status.ModMovedPending", mod.DisplayName);
                 return;
             }
 
             mod.IsEnabled = true;
-            MessageBox.Show("移出失败，未找到对应Mod目录", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show(L("Msg.ModMoveOutFailed"), L("Dialog.Title.Tip"), MessageBoxButton.OK, MessageBoxImage.Warning);
         }
         catch (Exception ex)
         {
             mod.IsEnabled = true;
-            MessageBox.Show($"移出失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show(F("Msg.ModMoveOutException", ex.Message), L("Dialog.Title.Error"), MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 
@@ -716,7 +914,7 @@ public partial class MainViewModel : ObservableObject
         RefreshModSources();
         RefreshToolMods();
         RefreshGameMods();
-        StatusMessage = "已批量生效所有可用Mod";
+        StatusMessage = L("Status.EnableAll");
     }
 
     [RelayCommand]
@@ -740,7 +938,7 @@ public partial class MainViewModel : ObservableObject
         RefreshModSources();
         RefreshToolMods();
         RefreshGameMods();
-        StatusMessage = "已批量取消所有生效Mod";
+        StatusMessage = L("Status.DisableAll");
     }
 
     [RelayCommand]
@@ -785,13 +983,13 @@ public partial class MainViewModel : ObservableObject
     {
         if (string.IsNullOrWhiteSpace(SelectedSteamId))
         {
-            MessageBox.Show("未找到可用Steam ID", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show(L("Msg.NoSteamId"), L("Dialog.Title.Tip"), MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
 
         if (SelectedSaveDirection == null || SelectedSaveSlot == null)
         {
-            MessageBox.Show("请选择复制方向和栏位", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show(L("Msg.SelectDirectionAndSlot"), L("Dialog.Title.Tip"), MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
 
@@ -800,17 +998,12 @@ public partial class MainViewModel : ObservableObject
             : SaveCopyDirection.NormalToModded;
 
         var directionText = direction == SaveCopyDirection.NormalToModded
-            ? "非Mod -> Mod"
-            : "Mod -> 非Mod";
+            ? L("Save.Direction.Short.NormalToMod")
+            : L("Save.Direction.Short.ModToNormal");
 
         var confirmResult = MessageBox.Show(
-            $"⚠️ 确认复制存档？\n\n" +
-            $"Steam ID: {SelectedSteamId}\n" +
-            $"方向: {directionText}\n" +
-            $"栏位: {SelectedSaveSlot.Label}\n\n" +
-            "会先把目标栏位备份到存档目录同级的 Backup/Saves，再执行复制。\n" +
-            "是否继续？",
-            "确认复制",
+            F("Msg.CopySaveConfirm", SelectedSteamId, directionText, SelectedSaveSlot.Label),
+            L("Dialog.Confirm.Copy"),
             MessageBoxButton.YesNo,
             MessageBoxImage.Warning);
 
@@ -819,7 +1012,7 @@ public partial class MainViewModel : ObservableObject
             return;
         }
 
-        StatusMessage = "正在复制存档...";
+        StatusMessage = L("Status.CopySaveRunning");
         SaveCopyResult result;
         try
         {
@@ -827,20 +1020,20 @@ public partial class MainViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"存档复制失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
-            StatusMessage = "存档复制失败";
+            MessageBox.Show(F("Msg.CopySaveException", ex.Message), L("Dialog.Title.Error"), MessageBoxButton.OK, MessageBoxImage.Error);
+            StatusMessage = L("Status.CopySaveFailed");
             return;
         }
 
         if (!result.Success)
         {
-            MessageBox.Show("存档复制失败，请确认源栏位存档是否存在", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
-            StatusMessage = "存档复制失败";
+            MessageBox.Show(L("Msg.CopySaveSourceMissing"), L("Dialog.Title.Error"), MessageBoxButton.OK, MessageBoxImage.Error);
+            StatusMessage = L("Status.CopySaveFailed");
             return;
         }
 
-        StatusMessage = $"已复制 {result.CopiedCount} 个栏位（{directionText}）";
-        MessageBox.Show($"存档复制成功！\n备份位置: {result.BackupPath}", "成功", MessageBoxButton.OK, MessageBoxImage.Information);
+        StatusMessage = F("Status.CopySaveSuccess", result.CopiedCount, directionText);
+        MessageBox.Show(F("Msg.CopySaveDone", result.BackupPath), L("Dialog.Title.Success"), MessageBoxButton.OK, MessageBoxImage.Information);
         RefreshSaveBackups();
     }
 
@@ -849,20 +1042,14 @@ public partial class MainViewModel : ObservableObject
     {
         if (SelectedSaveBackup == null)
         {
-            MessageBox.Show("请先选择要恢复的备份存档", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show(L("Msg.SelectRestoreBackup"), L("Dialog.Title.Tip"), MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
 
         var backup = SelectedSaveBackup;
         var confirm = MessageBox.Show(
-            $"确认恢复该备份？\n\n" +
-            $"时间: {backup.BackupTime:yyyy-MM-dd HH:mm:ss}\n" +
-            $"Steam ID: {backup.SteamId}\n" +
-            $"备份路径: {backup.BackupPath}\n" +
-            $"备份类型: {backup.BackupKindDisplay}\n" +
-            $"恢复目标: {SelectedRestoreTarget?.Label ?? "原路径（默认）"}\n\n" +
-            "当前存档会先自动备份后再恢复。",
-            "恢复存档确认",
+            F("Msg.RestoreConfirm", backup.BackupTime, backup.SteamId, backup.BackupPath, backup.BackupKindDisplay, SelectedRestoreTarget?.Label ?? L("Save.Restore.Auto")),
+            L("Dialog.Confirm.Restore"),
             MessageBoxButton.YesNo,
             MessageBoxImage.Warning);
 
@@ -871,7 +1058,7 @@ public partial class MainViewModel : ObservableObject
             return;
         }
 
-        StatusMessage = "正在恢复存档...";
+        StatusMessage = L("Status.RestoreSaveRunning");
         SaveCopyResult result;
         try
         {
@@ -880,15 +1067,15 @@ public partial class MainViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"恢复存档失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
-            StatusMessage = "恢复存档失败";
+            MessageBox.Show(F("Msg.RestoreException", ex.Message), L("Dialog.Title.Error"), MessageBoxButton.OK, MessageBoxImage.Error);
+            StatusMessage = L("Status.RestoreSaveFailed");
             return;
         }
 
         if (!result.Success)
         {
-            MessageBox.Show("恢复存档失败，备份路径可能已失效", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
-            StatusMessage = "恢复存档失败";
+            MessageBox.Show(L("Msg.RestoreInvalidBackup"), L("Dialog.Title.Error"), MessageBoxButton.OK, MessageBoxImage.Error);
+            StatusMessage = L("Status.RestoreSaveFailed");
             return;
         }
 
@@ -897,9 +1084,9 @@ public partial class MainViewModel : ObservableObject
             SelectedSteamId = backup.SteamId;
         }
 
-        StatusMessage = "存档恢复成功";
-        var rescueText = string.IsNullOrWhiteSpace(result.BackupPath) ? "未生成恢复前备份" : result.BackupPath;
-        MessageBox.Show($"恢复完成。\n恢复前备份: {rescueText}", "成功", MessageBoxButton.OK, MessageBoxImage.Information);
+        StatusMessage = L("Status.RestoreSaveSuccess");
+        var rescueText = string.IsNullOrWhiteSpace(result.BackupPath) ? L("Msg.RestoreRescueMissing") : result.BackupPath;
+        MessageBox.Show(F("Msg.RestoreDone", rescueText), L("Dialog.Title.Success"), MessageBoxButton.OK, MessageBoxImage.Information);
         RefreshSaveBackups();
     }
 
@@ -908,11 +1095,11 @@ public partial class MainViewModel : ObservableObject
     {
         if (string.IsNullOrWhiteSpace(SelectedSteamId))
         {
-            MessageBox.Show("请先选择Steam ID", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show(L("Msg.SelectSteamIdFirst"), L("Dialog.Title.Tip"), MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
 
-        StatusMessage = "正在执行手动备份...";
+        StatusMessage = L("Status.ManualBackupRunning");
         SaveCopyResult result;
         try
         {
@@ -920,22 +1107,22 @@ public partial class MainViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"手动备份失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
-            StatusMessage = "手动备份失败";
+            MessageBox.Show(F("Msg.ManualBackupException", ex.Message), L("Dialog.Title.Error"), MessageBoxButton.OK, MessageBoxImage.Error);
+            StatusMessage = L("Status.ManualBackupFailed");
             return;
         }
 
         if (!result.Success)
         {
-            MessageBox.Show("手动备份失败，请确认Steam ID目录存在", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
-            StatusMessage = "手动备份失败";
+            MessageBox.Show(L("Msg.ManualBackupIdMissing"), L("Dialog.Title.Error"), MessageBoxButton.OK, MessageBoxImage.Error);
+            StatusMessage = L("Status.ManualBackupFailed");
             return;
         }
 
-        StatusMessage = "手动备份完成";
+        StatusMessage = L("Status.ManualBackupDone");
         ManualBackupName = string.Empty;
         RefreshSaveBackups();
-        MessageBox.Show($"手动备份成功！\n备份位置: {result.BackupPath}", "成功", MessageBoxButton.OK, MessageBoxImage.Information);
+        MessageBox.Show(F("Msg.ManualBackupDone", result.BackupPath), L("Dialog.Title.Success"), MessageBoxButton.OK, MessageBoxImage.Information);
     }
 
     [RelayCommand]
@@ -957,17 +1144,17 @@ public partial class MainViewModel : ObservableObject
     {
         if (string.IsNullOrWhiteSpace(SelectedPath))
         {
-            MessageBox.Show("请先选择游戏路径", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show(L("Msg.SelectGamePathFirst"), L("Dialog.Title.Tip"), MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
 
         if (_launchService.LaunchGame(SelectedPath, false))
         {
-            StatusMessage = "游戏已启动";
+            StatusMessage = L("Status.GameLaunched");
             return;
         }
 
-        MessageBox.Show("启动游戏失败，请检查游戏路径", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+        MessageBox.Show(L("Msg.GameLaunchFailed"), L("Dialog.Title.Error"), MessageBoxButton.OK, MessageBoxImage.Error);
     }
 
     [RelayCommand]
@@ -975,17 +1162,17 @@ public partial class MainViewModel : ObservableObject
     {
         if (string.IsNullOrWhiteSpace(SelectedPath))
         {
-            MessageBox.Show("请先选择游戏路径", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show(L("Msg.SelectGamePathFirst"), L("Dialog.Title.Tip"), MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
 
         if (_launchService.LaunchGame(SelectedPath, true))
         {
-            StatusMessage = "游戏已启动（无Mod）";
+            StatusMessage = L("Status.GameLaunchedNoMods");
             return;
         }
 
-        MessageBox.Show("启动游戏失败，请检查游戏路径", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+        MessageBox.Show(L("Msg.GameLaunchFailed"), L("Dialog.Title.Error"), MessageBoxButton.OK, MessageBoxImage.Error);
     }
 
     [RelayCommand]
@@ -993,11 +1180,11 @@ public partial class MainViewModel : ObservableObject
     {
         if (_launchService.LaunchGameViaSteam())
         {
-            StatusMessage = "已通过Steam启动游戏";
+            StatusMessage = L("Status.GameLaunchedSteam");
             return;
         }
 
-        MessageBox.Show("通过Steam启动失败，请确认Steam已安装并已登录", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+        MessageBox.Show(L("Msg.SteamLaunchFailed"), L("Dialog.Title.Error"), MessageBoxButton.OK, MessageBoxImage.Error);
     }
 
     [RelayCommand]
@@ -1005,11 +1192,11 @@ public partial class MainViewModel : ObservableObject
     {
         if (_launchService.LaunchGameViaSteamNoMods())
         {
-            StatusMessage = "已通过Steam启动游戏（无Mod）";
+            StatusMessage = L("Status.GameLaunchedSteamNoMods");
             return;
         }
 
-        MessageBox.Show("通过Steam启动失败，请确认Steam已安装并已登录", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+        MessageBox.Show(L("Msg.SteamLaunchFailed"), L("Dialog.Title.Error"), MessageBoxButton.OK, MessageBoxImage.Error);
     }
 
     private bool FilterToolMod(object obj)
@@ -1035,8 +1222,8 @@ public partial class MainViewModel : ObservableObject
         }
 
         if (!string.IsNullOrWhiteSpace(SelectedTagFilter)
-            && !string.Equals(SelectedTagFilter, "全部标签", StringComparison.OrdinalIgnoreCase)
-            && !string.Equals(mod.Tag?.Trim(), SelectedTagFilter, StringComparison.OrdinalIgnoreCase))
+            && !string.Equals(SelectedTagFilter, L("Tag.All"), StringComparison.OrdinalIgnoreCase)
+            && !ParseTags(mod.Tag).Contains(SelectedTagFilter, StringComparer.OrdinalIgnoreCase))
         {
             return false;
         }
@@ -1058,13 +1245,19 @@ public partial class MainViewModel : ObservableObject
     private void UpdateTagFilters()
     {
         var tags = ToolMods
-            .Select(x => x.Tag?.Trim() ?? string.Empty)
-            .Where(x => x.Length > 0)
+            .SelectMany(x => ParseTags(x.Tag))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        var nextFilters = new List<string> { "全部标签" };
+        AvailableTags.Clear();
+        foreach (var tag in tags)
+        {
+            AvailableTags.Add(tag);
+        }
+
+        var allTagLabel = L("Tag.All");
+        var nextFilters = new List<string> { allTagLabel };
         nextFilters.AddRange(tags);
 
         TagFilters.Clear();
@@ -1075,7 +1268,74 @@ public partial class MainViewModel : ObservableObject
 
         if (!TagFilters.Contains(SelectedTagFilter))
         {
-            SelectedTagFilter = "全部标签";
+            SelectedTagFilter = allTagLabel;
         }
+    }
+
+    private static List<string> ParseTags(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return [];
+        }
+
+        return TagSplitRegex
+            .Split(raw)
+            .Select(x => x.Trim())
+            .Where(x => x.Length > 0)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private static string JoinTags(IEnumerable<string> tags)
+    {
+        return string.Join(", ", tags
+            .Select(x => x.Trim())
+            .Where(x => x.Length > 0)
+            .Distinct(StringComparer.OrdinalIgnoreCase));
+    }
+
+    private void SetModTags(IEnumerable<string> tags)
+    {
+        ModTags.Clear();
+        foreach (var tag in tags)
+        {
+            ModTags.Add(tag);
+        }
+
+        ModTagInput = JoinTags(ModTags);
+    }
+
+    private bool TryAppendTag(string? tagText)
+    {
+        var normalized = tagText?.Trim() ?? string.Empty;
+        if (normalized.Length == 0)
+        {
+            return false;
+        }
+
+        if (ModTags.Contains(normalized, StringComparer.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        ModTags.Add(normalized);
+        if (!AvailableTags.Contains(normalized, StringComparer.OrdinalIgnoreCase))
+        {
+            AvailableTags.Add(normalized);
+        }
+
+        ModTagInput = JoinTags(ModTags);
+        return true;
+    }
+
+    private string L(string key)
+    {
+        return _localizationService[key];
+    }
+
+    private string F(string key, params object[] args)
+    {
+        return string.Format(L(key), args);
     }
 }

@@ -4,7 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
-        Title="杀戮尖塔2 Mod管理器"
+        Title="{Binding Loc[App.Title]}"
         Width="1080"
         Height="740"
         MinWidth="940"
@@ -107,11 +107,30 @@
             <Setter Property="Padding" Value="8,5"/>
         </Style>
 
+        <Style x:Key="MetaTextBoxAutoSaveStyle" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+            <EventSetter Event="LostFocus" Handler="OnMetaEditorLostFocus"/>
+        </Style>
+
         <Style TargetType="ComboBox">
             <Setter Property="Background" Value="#FFFFFF"/>
             <Setter Property="BorderBrush" Value="#C7D6E7"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="8,4"/>
+        </Style>
+
+        <Style x:Key="MetaComboBoxAutoSaveStyle" TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}">
+            <EventSetter Event="LostFocus" Handler="OnMetaEditorLostFocus"/>
+        </Style>
+
+        <Style x:Key="TagRemoveButtonStyle" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Width" Value="18"/>
+            <Setter Property="Height" Value="18"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Margin" Value="6,0,0,0"/>
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="Background" Value="#E7EEF6"/>
+            <Setter Property="BorderBrush" Value="#BFD2E6"/>
+            <Setter Property="Foreground" Value="#36536D"/>
         </Style>
 
         <Style TargetType="ListBox">
@@ -134,12 +153,20 @@
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <StackPanel>
-                    <TextBlock Text="杀戮尖塔2 Mod管理器" FontSize="27" FontWeight="Bold" Foreground="{StaticResource TitleBrush}"/>
-                    <TextBlock Text="支持多来源Mod管理、存档互拷与快捷恢复" Margin="0,4,0,0" Foreground="#587086"/>
+                    <TextBlock Text="{Binding Loc[App.Title]}" FontSize="27" FontWeight="Bold" Foreground="{StaticResource TitleBrush}"/>
+                    <TextBlock Text="{Binding Loc[App.Subtitle]}" Margin="0,4,0,0" Foreground="#587086"/>
                 </StackPanel>
-                <TextBlock Grid.Column="1" Text="🎮" FontSize="34" VerticalAlignment="Center" Margin="12,0,2,0"/>
+                <WrapPanel Grid.Column="1" VerticalAlignment="Center" Margin="12,0,4,0">
+                    <TextBlock Text="{Binding Loc[Language.Label]}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                    <ComboBox Width="132"
+                              ItemsSource="{Binding LanguageOptions}"
+                              SelectedItem="{Binding SelectedLanguageOption}"
+                              DisplayMemberPath="Label"/>
+                </WrapPanel>
+                <TextBlock Grid.Column="2" Text="🎮" FontSize="34" VerticalAlignment="Center" Margin="6,0,2,0"/>
             </Grid>
         </Border>
 
@@ -151,18 +178,18 @@
                 </Grid.RowDefinitions>
 
                 <WrapPanel Grid.Row="0" VerticalAlignment="Center">
-                    <TextBlock Text="游戏路径:" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <TextBlock Text="{Binding Loc[Path.Label]}" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,8,0"/>
                     <ComboBox Width="640" ItemsSource="{Binding DetectedPaths}" SelectedItem="{Binding SelectedPath}"/>
-                    <Button Content="刷新" Command="{Binding RefreshPathsCommand}" Margin="8,0,0,0"/>
-                    <Button Content="浏览..." Command="{Binding BrowseGamePathCommand}" Margin="4,0,0,0"/>
+                    <Button Content="{Binding Loc[Common.Refresh]}" Command="{Binding RefreshPathsCommand}" Margin="8,0,0,0"/>
+                    <Button Content="{Binding Loc[Common.Browse]}" Command="{Binding BrowseGamePathCommand}" Margin="4,0,0,0"/>
                 </WrapPanel>
 
                 <WrapPanel Grid.Row="1" Margin="0,8,0,0" VerticalAlignment="Center">
                     <TextBlock Text="{Binding GamePathStatus}" Foreground="#15803D" FontWeight="Bold" VerticalAlignment="Center"/>
-                    <Button Content="📂 游戏目录" Command="{Binding OpenGameDirectoryCommand}" Margin="14,0,0,0" Padding="9,4"/>
-                    <Button Content="📂 游戏Mods" Command="{Binding OpenGameModsDirectoryCommand}" Padding="9,4"/>
-                    <Button Content="📂 待生效Mods" Command="{Binding OpenPendingModsDirectoryCommand}" Padding="9,4"/>
-                    <Button Content="📂 工具Mods" Command="{Binding OpenToolModsDirectoryCommand}" Padding="9,4"/>
+                    <Button Content="{Binding Loc[Path.OpenGameDir]}" Command="{Binding OpenGameDirectoryCommand}" Margin="14,0,0,0" Padding="9,4"/>
+                    <Button Content="{Binding Loc[Path.OpenGameMods]}" Command="{Binding OpenGameModsDirectoryCommand}" Padding="9,4"/>
+                    <Button Content="{Binding Loc[Path.OpenPendingMods]}" Command="{Binding OpenPendingModsDirectoryCommand}" Padding="9,4"/>
+                    <Button Content="{Binding Loc[Path.OpenToolMods]}" Command="{Binding OpenToolModsDirectoryCommand}" Padding="9,4"/>
                 </WrapPanel>
             </Grid>
         </Border>
@@ -171,12 +198,12 @@
             <StackPanel>
                 <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,10">
                     <StackPanel>
-                        <TextBlock Text="启动游戏" FontSize="18" FontWeight="Bold" Foreground="{StaticResource TitleBrush}"/>
+                        <TextBlock Text="{Binding Loc[Launch.Title]}" FontSize="18" FontWeight="Bold" Foreground="{StaticResource TitleBrush}"/>
                         <WrapPanel Margin="0,8,0,0">
-                            <Button Content="Steam启动" Command="{Binding LaunchGameViaSteamCommand}" Style="{StaticResource AccentButtonStyle}" Padding="16,8"/>
-                            <Button Content="Steam启动(无Mod)" Command="{Binding LaunchGameViaSteamNoModsCommand}" Style="{StaticResource AccentButtonStyle}" Padding="16,8" Margin="8,0,0,0"/>
-                            <Button Content="直接启动" Command="{Binding LaunchGameCommand}" Style="{StaticResource PrimaryButtonStyle}" Padding="16,8" Margin="14,0,0,0"/>
-                            <Button Content="直接启动(无Mod)" Command="{Binding LaunchGameNoModsCommand}" Style="{StaticResource PrimaryButtonStyle}" Padding="16,8" Margin="8,0,0,0"/>
+                            <Button Content="{Binding Loc[Launch.Steam]}" Command="{Binding LaunchGameViaSteamCommand}" Style="{StaticResource AccentButtonStyle}" Padding="16,8"/>
+                            <Button Content="{Binding Loc[Launch.SteamNoMods]}" Command="{Binding LaunchGameViaSteamNoModsCommand}" Style="{StaticResource AccentButtonStyle}" Padding="16,8" Margin="8,0,0,0"/>
+                            <Button Content="{Binding Loc[Launch.Direct]}" Command="{Binding LaunchGameCommand}" Style="{StaticResource PrimaryButtonStyle}" Padding="16,8" Margin="14,0,0,0"/>
+                            <Button Content="{Binding Loc[Launch.DirectNoMods]}" Command="{Binding LaunchGameNoModsCommand}" Style="{StaticResource PrimaryButtonStyle}" Padding="16,8" Margin="8,0,0,0"/>
                         </WrapPanel>
                     </StackPanel>
                 </Border>
@@ -197,14 +224,14 @@
                             </Grid.RowDefinitions>
 
                             <WrapPanel Grid.Row="0" VerticalAlignment="Center">
-                                <TextBlock Text="Mod列表（勾选后复制到游戏Mods）" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TitleBrush}"/>
-                                <Button Content="刷新" Command="{Binding RefreshToolModsCommand}" Margin="8,0,0,0" Padding="8,3"/>
+                                <TextBlock Text="{Binding Loc[ModList.Title]}" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TitleBrush}"/>
+                                <Button Content="{Binding Loc[Common.Refresh]}" Command="{Binding RefreshToolModsCommand}" Margin="8,0,0,0" Padding="8,3"/>
                             </WrapPanel>
 
                             <WrapPanel Grid.Row="1" Margin="0,8,0,0" VerticalAlignment="Center">
-                                <TextBlock Text="搜索:" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                <TextBlock Text="{Binding Loc[Common.Search]}" VerticalAlignment="Center" Margin="0,0,6,0"/>
                                 <TextBox Width="220" Text="{Binding ModSearchText, UpdateSourceTrigger=PropertyChanged}"/>
-                                <TextBlock Text="标签:" VerticalAlignment="Center" Margin="12,0,6,0"/>
+                                <TextBlock Text="{Binding Loc[Common.Tag]}" VerticalAlignment="Center" Margin="12,0,6,0"/>
                                 <ComboBox Width="160" ItemsSource="{Binding TagFilters}" SelectedItem="{Binding SelectedTagFilter}"/>
                             </WrapPanel>
 
@@ -249,7 +276,7 @@
                                             </Border>
                                             <Button Grid.Column="2"
                                                     Grid.RowSpan="3"
-                                                    Content="打开"
+                                                    Content="{Binding DataContext.Loc[Common.Open], RelativeSource={RelativeSource AncestorType=Window}}"
                                                     Command="{Binding DataContext.OpenModFolderCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                     CommandParameter="{Binding}"
                                                     Padding="8,2"
@@ -261,11 +288,11 @@
                             </ListBox>
 
                             <WrapPanel Grid.Row="3" Margin="0,8,0,0">
-                                <Button Content="添加来源" Command="{Binding AddModSourceCommand}"/>
-                                <Button Content="移除来源" Command="{Binding RemoveModSourceCommand}"/>
-                                <Button Content="打开来源" Command="{Binding OpenSelectedModSourceCommand}"/>
-                                <Button Content="全选生效" Command="{Binding SelectAllModsCommand}"/>
-                                <Button Content="全部取消" Command="{Binding DeselectAllModsCommand}"/>
+                                <Button Content="{Binding Loc[Source.Add]}" Command="{Binding AddModSourceCommand}"/>
+                                <Button Content="{Binding Loc[Source.Remove]}" Command="{Binding RemoveModSourceCommand}"/>
+                                <Button Content="{Binding Loc[Source.Open]}" Command="{Binding OpenSelectedModSourceCommand}"/>
+                                <Button Content="{Binding Loc[Mods.EnableAll]}" Command="{Binding SelectAllModsCommand}"/>
+                                <Button Content="{Binding Loc[Mods.DisableAll]}" Command="{Binding DeselectAllModsCommand}"/>
                             </WrapPanel>
                         </Grid>
                     </Border>
@@ -279,7 +306,7 @@
                                 <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
 
-                            <TextBlock Grid.Row="0" Text="Mod详情（统一编辑）" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TitleBrush}"/>
+                            <TextBlock Grid.Row="0" Text="{Binding Loc[ModDetail.Title]}" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TitleBrush}"/>
 
                             <Grid Grid.Row="1" Margin="0,8,0,0">
                                  <Grid.RowDefinitions>
@@ -295,24 +322,69 @@
                                      <ColumnDefinition Width="*"/>
                                  </Grid.ColumnDefinitions>
 
-                                 <TextBlock Grid.Row="0" Grid.Column="0" Text="名称:" HorizontalAlignment="Right" Margin="0,0,8,6" VerticalAlignment="Center"/>
-                                 <TextBox Grid.Row="0" Grid.Column="1" Margin="0,0,0,6" Text="{Binding ModNameInput, UpdateSourceTrigger=PropertyChanged}"/>
+                                 <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding Loc[Field.Name]}" HorizontalAlignment="Right" Margin="0,0,8,6" VerticalAlignment="Center"/>
+                                 <TextBox Grid.Row="0" Grid.Column="1" Margin="0,0,0,6" Style="{StaticResource MetaTextBoxAutoSaveStyle}" Text="{Binding ModNameInput, UpdateSourceTrigger=LostFocus}"/>
 
-                                 <TextBlock Grid.Row="1" Grid.Column="0" Text="标签:" HorizontalAlignment="Right" Margin="0,0,8,6" VerticalAlignment="Center"/>
-                                 <TextBox Grid.Row="1" Grid.Column="1" Margin="0,0,0,6" Text="{Binding ModTagInput, UpdateSourceTrigger=PropertyChanged}"/>
+                                 <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding Loc[Field.Tag]}" HorizontalAlignment="Right" Margin="0,0,8,6" VerticalAlignment="Top"/>
+                                 <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,0,0,6">
+                                     <Border Background="#F6FAFF" BorderBrush="#D7E5F2" BorderThickness="1" CornerRadius="8" Padding="8,8,8,6">
+                                         <ItemsControl ItemsSource="{Binding ModTags}">
+                                             <ItemsControl.ItemsPanel>
+                                                 <ItemsPanelTemplate>
+                                                     <WrapPanel/>
+                                                 </ItemsPanelTemplate>
+                                             </ItemsControl.ItemsPanel>
+                                             <ItemsControl.ItemTemplate>
+                                                 <DataTemplate>
+                                                     <Border Margin="0,0,6,6" Padding="8,3" Background="#E8F3FF" BorderBrush="#A8C9EA" BorderThickness="1" CornerRadius="10">
+                                                         <StackPanel Orientation="Horizontal">
+                                                             <TextBlock Text="{Binding}" FontSize="11" Foreground="#1D5E8A" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                                             <Button Content="✕"
+                                                                     Style="{StaticResource TagRemoveButtonStyle}"
+                                                                     VerticalAlignment="Center"
+                                                                     Command="{Binding DataContext.RemoveTagCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                     CommandParameter="{Binding}"/>
+                                                         </StackPanel>
+                                                     </Border>
+                                                 </DataTemplate>
+                                             </ItemsControl.ItemTemplate>
+                                         </ItemsControl>
+                                     </Border>
+                                     <Grid Margin="0,6,0,0">
+                                         <Grid.ColumnDefinitions>
+                                             <ColumnDefinition Width="220"/>
+                                             <ColumnDefinition Width="Auto"/>
+                                         </Grid.ColumnDefinitions>
+                                         <ComboBox Grid.Column="0"
+                                                   Height="32"
+                                                   ItemsSource="{Binding AvailableTags}"
+                                                   SelectedItem="{Binding SelectedTagSuggestion, Mode=TwoWay}"
+                                                   IsEditable="True"
+                                                   IsTextSearchEnabled="True"
+                                                   StaysOpenOnEdit="True"
+                                                   Text="{Binding NewTagInput, UpdateSourceTrigger=PropertyChanged}"
+                                                   KeyDown="OnTagInputKeyDown"/>
+                                         <Button Grid.Column="1"
+                                                 Margin="8,0,0,0"
+                                                 Padding="10,4"
+                                                 Content="+"
+                                                 Command="{Binding AddNewTagCommand}"/>
+                                     </Grid>
+                                     <TextBlock Text="{Binding Loc[Field.TagHint]}" Margin="0,4,0,0" FontSize="10" Foreground="#60798E"/>
+                                 </StackPanel>
 
-                                 <TextBlock Grid.Row="2" Grid.Column="0" Text="详情:" HorizontalAlignment="Right" Margin="0,0,8,6" VerticalAlignment="Center"/>
-                                 <TextBox Grid.Row="2" Grid.Column="1" Margin="0,0,0,6" Text="{Binding ModDetailInput, UpdateSourceTrigger=PropertyChanged}"/>
+                                 <TextBlock Grid.Row="2" Grid.Column="0" Text="{Binding Loc[Field.Detail]}" HorizontalAlignment="Right" Margin="0,0,8,6" VerticalAlignment="Center"/>
+                                 <TextBox Grid.Row="2" Grid.Column="1" Margin="0,0,0,6" Style="{StaticResource MetaTextBoxAutoSaveStyle}" Text="{Binding ModDetailInput, UpdateSourceTrigger=LostFocus}"/>
 
-                                 <TextBlock Grid.Row="3" Grid.Column="0" Text="作者:" HorizontalAlignment="Right" Margin="0,0,8,6" VerticalAlignment="Center"/>
-                                 <TextBox Grid.Row="3" Grid.Column="1" Margin="0,0,0,6" Text="{Binding ModAuthorInput, UpdateSourceTrigger=PropertyChanged}"/>
+                                 <TextBlock Grid.Row="3" Grid.Column="0" Text="{Binding Loc[Field.Author]}" HorizontalAlignment="Right" Margin="0,0,8,6" VerticalAlignment="Center"/>
+                                 <TextBox Grid.Row="3" Grid.Column="1" Margin="0,0,0,6" Style="{StaticResource MetaTextBoxAutoSaveStyle}" Text="{Binding ModAuthorInput, UpdateSourceTrigger=LostFocus}"/>
 
-                                 <TextBlock Grid.Row="4" Grid.Column="0" Text="下载链接:" HorizontalAlignment="Right" Margin="0,0,8,6" VerticalAlignment="Center"/>
-                                 <TextBox Grid.Row="4" Grid.Column="1" Margin="0,0,0,6" Text="{Binding ModDownloadUrlInput, UpdateSourceTrigger=PropertyChanged}"/>
+                                 <TextBlock Grid.Row="4" Grid.Column="0" Text="{Binding Loc[Field.DownloadUrl]}" HorizontalAlignment="Right" Margin="0,0,8,6" VerticalAlignment="Center"/>
+                                 <TextBox Grid.Row="4" Grid.Column="1" Margin="0,0,0,6" Style="{StaticResource MetaTextBoxAutoSaveStyle}" Text="{Binding ModDownloadUrlInput, UpdateSourceTrigger=LostFocus}"/>
 
-                                 <TextBlock Grid.Row="5" Grid.Column="0" Text="备注:" HorizontalAlignment="Right" Margin="0,0,8,0" VerticalAlignment="Top"/>
-                                 <TextBox Grid.Row="5" Grid.Column="1" Text="{Binding ModRemarkInput, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Height="72"/>
-                             </Grid>
+                                 <TextBlock Grid.Row="5" Grid.Column="0" Text="{Binding Loc[Field.Remark]}" HorizontalAlignment="Right" Margin="0,0,8,0" VerticalAlignment="Top"/>
+                                 <TextBox Grid.Row="5" Grid.Column="1" Style="{StaticResource MetaTextBoxAutoSaveStyle}" Text="{Binding ModRemarkInput, UpdateSourceTrigger=LostFocus}" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Height="72"/>
+                              </Grid>
 
                             <Grid Grid.Row="2" Margin="0,8,0,0">
                                 <Grid.RowDefinitions>
@@ -327,27 +399,27 @@
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
 
-                                <TextBlock Grid.Row="0" Grid.Column="0" Text="详情链接:" HorizontalAlignment="Right" Margin="0,0,8,6" VerticalAlignment="Center"/>
-                                <TextBox Grid.Row="0" Grid.Column="1" Margin="0,0,0,6" Text="{Binding ModDetailUrlInput, UpdateSourceTrigger=PropertyChanged}"/>
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding Loc[Field.DetailUrl]}" HorizontalAlignment="Right" Margin="0,0,8,6" VerticalAlignment="Center"/>
+                                <TextBox Grid.Row="0" Grid.Column="1" Margin="0,0,0,6" Style="{StaticResource MetaTextBoxAutoSaveStyle}" Text="{Binding ModDetailUrlInput, UpdateSourceTrigger=LostFocus}"/>
 
-                                <TextBlock Grid.Row="1" Grid.Column="0" Text="作者链接:" HorizontalAlignment="Right" Margin="0,0,8,6" VerticalAlignment="Center"/>
-                                <TextBox Grid.Row="1" Grid.Column="1" Margin="0,0,0,6" Text="{Binding ModAuthorUrlInput, UpdateSourceTrigger=PropertyChanged}"/>
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding Loc[Field.AuthorUrl]}" HorizontalAlignment="Right" Margin="0,0,8,6" VerticalAlignment="Center"/>
+                                <TextBox Grid.Row="1" Grid.Column="1" Margin="0,0,0,6" Style="{StaticResource MetaTextBoxAutoSaveStyle}" Text="{Binding ModAuthorUrlInput, UpdateSourceTrigger=LostFocus}"/>
 
-                                <TextBlock Grid.Row="2" Grid.Column="0" Text="版本:" HorizontalAlignment="Right" Margin="0,0,8,6" VerticalAlignment="Center"/>
-                                <TextBox Grid.Row="2" Grid.Column="1" Margin="0,0,0,6" Text="{Binding ModVersionInput, UpdateSourceTrigger=PropertyChanged}"/>
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="{Binding Loc[Field.Version]}" HorizontalAlignment="Right" Margin="0,0,8,6" VerticalAlignment="Center"/>
+                                <TextBox Grid.Row="2" Grid.Column="1" Margin="0,0,0,6" Style="{StaticResource MetaTextBoxAutoSaveStyle}" Text="{Binding ModVersionInput, UpdateSourceTrigger=LostFocus}"/>
 
-                                <TextBlock Grid.Row="3" Grid.Column="0" Text="更新时间:" HorizontalAlignment="Right" Margin="0,0,8,6" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Row="3" Grid.Column="0" Text="{Binding Loc[Field.Updated]}" HorizontalAlignment="Right" Margin="0,0,8,6" VerticalAlignment="Center"/>
                                 <TextBox Grid.Row="3" Grid.Column="1" Margin="0,0,0,6" Text="{Binding SelectedModUpdatedDisplay}" IsReadOnly="True"/>
 
-                                <TextBlock Grid.Row="4" Grid.Column="0" Text="扩展详情:" HorizontalAlignment="Right" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                                <TextBox Grid.Row="4" Grid.Column="1" Text="{Binding ModDescriptionInput, UpdateSourceTrigger=PropertyChanged}"/>
+                                <TextBlock Grid.Row="4" Grid.Column="0" Text="{Binding Loc[Field.Description]}" HorizontalAlignment="Right" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                <TextBox Grid.Row="4" Grid.Column="1" Style="{StaticResource MetaTextBoxAutoSaveStyle}" Text="{Binding ModDescriptionInput, UpdateSourceTrigger=LostFocus}"/>
                             </Grid>
 
                             <WrapPanel Grid.Row="3" Margin="0,10,0,0">
-                                <Button Content="保存" Command="{Binding SaveModMetaCommand}" Style="{StaticResource PrimaryButtonStyle}"/>
-                                <Button Content="重置" Command="{Binding ClearModMetaCommand}"/>
-                                <Button Content="下载页" Command="{Binding OpenUrlCommand}" CommandParameter="{Binding ModDownloadUrlInput}"/>
-                                <Button Content="作者页" Command="{Binding OpenUrlCommand}" CommandParameter="{Binding ModAuthorUrlInput}"/>
+                                <Button Content="{Binding Loc[Common.Save]}" Command="{Binding SaveModMetaCommand}" Style="{StaticResource PrimaryButtonStyle}"/>
+                                <Button Content="{Binding Loc[Common.Reset]}" Command="{Binding ClearModMetaCommand}"/>
+                                <Button Content="{Binding Loc[Common.DownloadPage]}" Command="{Binding OpenUrlCommand}" CommandParameter="{Binding ModDownloadUrlInput}"/>
+                                <Button Content="{Binding Loc[Common.AuthorPage]}" Command="{Binding OpenUrlCommand}" CommandParameter="{Binding ModAuthorUrlInput}"/>
                             </WrapPanel>
                         </Grid>
                     </Border>
@@ -363,36 +435,36 @@
                         </Grid.RowDefinitions>
 
                         <WrapPanel Grid.Row="0" VerticalAlignment="Center">
-                            <TextBlock Text="存档管理" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TitleBrush}"/>
-                            <Button Content="打开存档目录" Command="{Binding OpenSavesDirectoryCommand}" Margin="14,0,0,0"/>
-                            <Button Content="打开备份目录" Command="{Binding OpenBackupDirectoryCommand}"/>
-                            <Button Content="刷新SteamID" Command="{Binding RefreshSteamIdsCommand}"/>
-                            <Button Content="刷新备份" Command="{Binding RefreshSaveBackupsCommand}"/>
+                            <TextBlock Text="{Binding Loc[Save.Title]}" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TitleBrush}"/>
+                            <Button Content="{Binding Loc[Save.OpenSavesDir]}" Command="{Binding OpenSavesDirectoryCommand}" Margin="14,0,0,0"/>
+                            <Button Content="{Binding Loc[Save.OpenBackupDir]}" Command="{Binding OpenBackupDirectoryCommand}"/>
+                            <Button Content="{Binding Loc[Save.RefreshSteamId]}" Command="{Binding RefreshSteamIdsCommand}"/>
+                            <Button Content="{Binding Loc[Save.RefreshBackups]}" Command="{Binding RefreshSaveBackupsCommand}"/>
                         </WrapPanel>
 
                         <WrapPanel Grid.Row="1" Margin="0,8,0,0" VerticalAlignment="Center">
-                            <TextBlock Text="Steam ID:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <TextBlock Text="{Binding Loc[Save.SteamId]}" VerticalAlignment="Center" Margin="0,0,8,0"/>
                             <ComboBox Width="190" ItemsSource="{Binding SteamIds}" SelectedItem="{Binding SelectedSteamId}"/>
-                            <TextBlock Text="复制方向:" VerticalAlignment="Center" Margin="14,0,8,0"/>
+                            <TextBlock Text="{Binding Loc[Save.CopyDirection]}" VerticalAlignment="Center" Margin="14,0,8,0"/>
                             <ComboBox Width="220" ItemsSource="{Binding SaveDirections}" SelectedItem="{Binding SelectedSaveDirection}" DisplayMemberPath="Label"/>
-                            <TextBlock Text="栏位:" VerticalAlignment="Center" Margin="14,0,8,0"/>
+                            <TextBlock Text="{Binding Loc[Save.Slot]}" VerticalAlignment="Center" Margin="14,0,8,0"/>
                             <ComboBox Width="120" ItemsSource="{Binding SaveSlots}" SelectedItem="{Binding SelectedSaveSlot}" DisplayMemberPath="Label"/>
-                            <Button Content="复制存档" Command="{Binding CopySaveCommand}" Margin="14,0,0,0" Style="{StaticResource PrimaryButtonStyle}" FontWeight="Bold"/>
+                            <Button Content="{Binding Loc[Save.Copy]}" Command="{Binding CopySaveCommand}" Margin="14,0,0,0" Style="{StaticResource PrimaryButtonStyle}" FontWeight="Bold"/>
                         </WrapPanel>
 
                         <WrapPanel Grid.Row="2" Margin="0,8,0,0" VerticalAlignment="Center">
-                            <TextBlock Text="快捷恢复:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <TextBlock Text="{Binding Loc[Save.QuickRestore]}" VerticalAlignment="Center" Margin="0,0,8,0"/>
                             <ComboBox Width="430" ItemsSource="{Binding SaveBackups}" SelectedItem="{Binding SelectedSaveBackup}" DisplayMemberPath="DisplayName"/>
-                            <TextBlock Text="恢复到:" VerticalAlignment="Center" Margin="14,0,8,0"/>
+                            <TextBlock Text="{Binding Loc[Save.RestoreTo]}" VerticalAlignment="Center" Margin="14,0,8,0"/>
                             <ComboBox Width="190" ItemsSource="{Binding RestoreTargets}" SelectedItem="{Binding SelectedRestoreTarget}" DisplayMemberPath="Label"/>
-                            <Button Content="恢复选中备份" Command="{Binding RestoreSaveBackupCommand}" Margin="14,0,0,0" Style="{StaticResource AccentButtonStyle}" FontWeight="Bold"/>
+                            <Button Content="{Binding Loc[Save.RestoreSelected]}" Command="{Binding RestoreSaveBackupCommand}" Margin="14,0,0,0" Style="{StaticResource AccentButtonStyle}" FontWeight="Bold"/>
                         </WrapPanel>
 
                         <WrapPanel Grid.Row="3" Margin="0,8,0,0" VerticalAlignment="Center">
-                            <TextBlock Text="手动备份名:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <TextBlock Text="{Binding Loc[Save.ManualName]}" VerticalAlignment="Center" Margin="0,0,8,0"/>
                             <TextBox Width="250" Text="{Binding ManualBackupName, UpdateSourceTrigger=PropertyChanged}"/>
-                            <Button Content="立即手动备份" Command="{Binding CreateManualBackupCommand}" Margin="12,0,0,0" Style="{StaticResource PrimaryButtonStyle}" FontWeight="Bold"/>
-                            <TextBlock Text="不填则默认命名为“手动备份”" Margin="10,0,0,0" VerticalAlignment="Center" Foreground="#60798E"/>
+                            <Button Content="{Binding Loc[Save.ManualBackupNow]}" Command="{Binding CreateManualBackupCommand}" Margin="12,0,0,0" Style="{StaticResource PrimaryButtonStyle}" FontWeight="Bold"/>
+                            <TextBlock Text="{Binding Loc[Save.ManualHint]}" Margin="10,0,0,0" VerticalAlignment="Center" Foreground="#60798E"/>
                         </WrapPanel>
                     </Grid>
                 </Border>

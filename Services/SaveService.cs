@@ -84,7 +84,7 @@ public class SaveService
         WriteBackupMeta(backupRoot, new SaveBackupMeta
         {
             Type = "slot",
-            Name = "自动备份",
+            Name = "#AUTO#",
             SteamId = steamId
         });
 
@@ -228,7 +228,7 @@ public class SaveService
                 WriteBackupMeta(rescueRoot, new SaveBackupMeta
                 {
                     Type = "restore",
-                    Name = "恢复前备份",
+                    Name = "#RESTORE_BEFORE#",
                     SteamId = backup.SteamId
                 });
             }
@@ -275,7 +275,7 @@ public class SaveService
             WriteBackupMeta(rescueRoot, new SaveBackupMeta
             {
                 Type = "restore",
-                Name = "恢复前备份",
+                Name = "#RESTORE_BEFORE#",
                 SteamId = backup.SteamId
             });
         }
@@ -304,7 +304,7 @@ public class SaveService
         WriteBackupMeta(backupRoot, new SaveBackupMeta
         {
             Type = "full",
-            Name = string.IsNullOrWhiteSpace(backupName) ? "手动备份" : backupName.Trim(),
+            Name = string.IsNullOrWhiteSpace(backupName) ? "#MANUAL#" : backupName.Trim(),
             SteamId = steamId
         });
 
@@ -597,14 +597,14 @@ public class SaveService
     {
         if (folderKey.StartsWith("manual_", StringComparison.OrdinalIgnoreCase))
         {
-            return "手动备份";
+            return "#MANUAL#";
         }
 
         if (folderKey.StartsWith("restore_before_", StringComparison.OrdinalIgnoreCase))
         {
-            return "恢复前备份";
+            return "#RESTORE_BEFORE#";
         }
 
-        return "自动备份";
+        return "#AUTO#";
     }
 }
