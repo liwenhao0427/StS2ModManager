@@ -178,7 +178,11 @@ public partial class MainViewModel : ObservableObject
         GamePathService.EnsureDirectoriesExist();
         InitializeSaveOptions();
         Initialize();
-        GamePathStatus = L("Path.Status.None");
+
+        if (string.IsNullOrWhiteSpace(SelectedPath))
+        {
+            GamePathStatus = L("Path.Status.None");
+        }
     }
 
     private void Initialize()
@@ -227,11 +231,20 @@ public partial class MainViewModel : ObservableObject
     {
         if (string.IsNullOrWhiteSpace(value))
         {
+            _modService.Settings.PreferredGamePath = null;
+            _modService.SaveSettings();
             GamePathStatus = L("Path.Status.None");
             return;
         }
 
-        if (_pathService.IsValidGamePath(value))
+        var normalizedPath = value.Trim();
+        if (!string.Equals(_modService.Settings.PreferredGamePath, normalizedPath, StringComparison.OrdinalIgnoreCase))
+        {
+            _modService.Settings.PreferredGamePath = normalizedPath;
+            _modService.SaveSettings();
+        }
+
+        if (_pathService.IsValidGamePath(normalizedPath))
         {
             GamePathStatus = L("Path.Status.Valid");
             RefreshModSources();
@@ -456,16 +469,39 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void RefreshPaths()
     {
+        var previousSelectedPath = SelectedPath;
+        List<string> paths;
+        try
+        {
+            paths = _pathService.DetectGamePaths();
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = F("Msg.OperationFailed", ex.Message);
+            return;
+        }
+
         DetectedPaths.Clear();
-        var paths = _pathService.DetectGamePaths();
         foreach (var path in paths)
         {
             DetectedPaths.Add(path);
         }
 
-        if (DetectedPaths.Count > 0 && (SelectedPath == null || !DetectedPaths.Contains(SelectedPath)))
+        TryAppendDetectedPath(previousSelectedPath);
+        TryAppendDetectedPath(_modService.Settings.PreferredGamePath);
+
+        if (!string.IsNullOrWhiteSpace(previousSelectedPath) && ContainsDetectedPath(previousSelectedPath))
         {
-            SelectedPath = DetectedPaths[0];
+            SelectedPath = previousSelectedPath;
+        }
+        else if (!string.IsNullOrWhiteSpace(_modService.Settings.PreferredGamePath)
+                 && ContainsDetectedPath(_modService.Settings.PreferredGamePath))
+        {
+            SelectedPath = _modService.Settings.PreferredGamePath;
+        }
+        else
+        {
+            SelectedPath = DetectedPaths.FirstOrDefault();
         }
 
         StatusMessage = string.Format(L("Status.PathRefresh"), paths.Count);
@@ -474,28 +510,41 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void BrowseGamePath()
     {
-        var dialog = new Microsoft.Win32.OpenFolderDialog
+        try
         {
-            Title = L("Dialog.SelectGameDirectory")
-        };
+            var dialog = new Microsoft.Win32.OpenFolderDialog
+            {
+                Title = L("Dialog.SelectGameDirectory")
+            };
 
-        if (dialog.ShowDialog() != true)
-        {
-            return;
+            if (dialog.ShowDialog() != true)
+            {
+                return;
+            }
+
+            var selectedFolder = dialog.FolderName?.Trim();
+            if (string.IsNullOrWhiteSpace(selectedFolder))
+            {
+                return;
+            }
+
+            if (!_pathService.IsValidGamePath(selectedFolder))
+            {
+                MessageBox.Show(L("Msg.InvalidGameDirectory"), L("Dialog.Title.Tip"), MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            if (!ContainsDetectedPath(selectedFolder))
+            {
+                DetectedPaths.Add(selectedFolder);
+            }
+
+            SelectedPath = selectedFolder;
         }
-
-        if (!_pathService.IsValidGamePath(dialog.FolderName))
+        catch (Exception ex)
         {
-            MessageBox.Show(L("Msg.InvalidGameDirectory"), L("Dialog.Title.Tip"), MessageBoxButton.OK, MessageBoxImage.Warning);
-            return;
+            MessageBox.Show(F("Msg.OperationFailed", ex.Message), L("Dialog.Title.Error"), MessageBoxButton.OK, MessageBoxImage.Error);
         }
-
-        if (!DetectedPaths.Contains(dialog.FolderName))
-        {
-            DetectedPaths.Add(dialog.FolderName);
-        }
-
-        SelectedPath = dialog.FolderName;
     }
 
     [RelayCommand]
@@ -1337,5 +1386,23 @@ public partial class MainViewModel : ObservableObject
     private string F(string key, params object[] args)
     {
         return string.Format(L(key), args);
+    }
+
+    private void TryAppendDetectedPath(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return;
+        }
+
+        if (!ContainsDetectedPath(path))
+        {
+            DetectedPaths.Add(path);
+        }
+    }
+
+    private bool ContainsDetectedPath(string path)
+    {
+        return DetectedPaths.Any(x => string.Equals(x, path, StringComparison.OrdinalIgnoreCase));
     }
 }

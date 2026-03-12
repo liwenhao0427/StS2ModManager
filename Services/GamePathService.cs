@@ -60,29 +60,9 @@ public class GamePathService
     public List<string> DetectGamePaths()
     {
         var paths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var path in _possiblePaths)
-        {
-            if (IsValidGamePath(path))
-            {
-                paths.Add(path);
-            }
-        }
-
-        foreach (var path in DetectFromCommonLibraryPatterns())
-        {
-            if (IsValidGamePath(path))
-            {
-                paths.Add(path);
-            }
-        }
-
-        foreach (var path in DetectFromSteamLibraryFolders())
-        {
-            if (IsValidGamePath(path))
-            {
-                paths.Add(path);
-            }
-        }
+        TryAddValidPaths(paths, _possiblePaths);
+        TryAddValidPaths(paths, DetectFromCommonLibraryPatterns());
+        TryAddValidPaths(paths, DetectFromSteamLibraryFolders());
 
         return paths.OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToList();
     }
@@ -126,8 +106,20 @@ public class GamePathService
     private static IEnumerable<string> DetectFromCommonLibraryPatterns()
     {
         var result = new List<string>();
-        foreach (var drive in DriveInfo.GetDrives().Where(d => d.IsReady && d.DriveType == DriveType.Fixed))
+        foreach (var drive in DriveInfo.GetDrives())
         {
+            try
+            {
+                if (!drive.IsReady || drive.DriveType != DriveType.Fixed)
+                {
+                    continue;
+                }
+            }
+            catch
+            {
+                continue;
+            }
+
             foreach (var root in _commonLibraryRoots)
             {
                 var steamCommon = Path.Combine(drive.RootDirectory.FullName, root, "steamapps", "common");
@@ -181,5 +173,23 @@ public class GamePathService
         }
 
         return result;
+    }
+
+    private void TryAddValidPaths(HashSet<string> paths, IEnumerable<string> candidates)
+    {
+        foreach (var path in candidates)
+        {
+            try
+            {
+                if (!string.IsNullOrWhiteSpace(path) && IsValidGamePath(path))
+                {
+                    paths.Add(path);
+                }
+            }
+            catch
+            {
+                // 忽略单个目录判断失败，避免影响整体探测
+            }
+        }
     }
 }
