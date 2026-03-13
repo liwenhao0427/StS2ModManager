@@ -145,6 +145,12 @@ public partial class MainViewModel : ObservableObject
     private string _selectedTagFilter = string.Empty;
 
     [ObservableProperty]
+    private ObservableCollection<string> _authorFilters = new();
+
+    [ObservableProperty]
+    private string _selectedAuthorFilter = string.Empty;
+
+    [ObservableProperty]
     private ObservableCollection<LanguageOption> _languageOptions = new();
 
     [ObservableProperty]
@@ -370,6 +376,11 @@ public partial class MainViewModel : ObservableObject
     }
 
     partial void OnSelectedTagFilterChanged(string value)
+    {
+        RefreshToolModsFilter();
+    }
+
+    partial void OnSelectedAuthorFilterChanged(string value)
     {
         RefreshToolModsFilter();
     }
@@ -1277,6 +1288,13 @@ public partial class MainViewModel : ObservableObject
             return false;
         }
 
+        if (!string.IsNullOrWhiteSpace(SelectedAuthorFilter)
+            && !string.Equals(SelectedAuthorFilter, L("Author.All"), StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(mod.AuthorDisplay, SelectedAuthorFilter, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
         return true;
     }
 
@@ -1318,6 +1336,28 @@ public partial class MainViewModel : ObservableObject
         if (!TagFilters.Contains(SelectedTagFilter))
         {
             SelectedTagFilter = allTagLabel;
+        }
+
+        var authors = ToolMods
+            .Select(x => x.AuthorDisplay)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var allAuthorLabel = L("Author.All");
+        var nextAuthorFilters = new List<string> { allAuthorLabel };
+        nextAuthorFilters.AddRange(authors);
+
+        AuthorFilters.Clear();
+        foreach (var author in nextAuthorFilters)
+        {
+            AuthorFilters.Add(author);
+        }
+
+        if (!AuthorFilters.Contains(SelectedAuthorFilter))
+        {
+            SelectedAuthorFilter = allAuthorLabel;
         }
     }
 
