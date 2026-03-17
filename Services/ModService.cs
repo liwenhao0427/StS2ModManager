@@ -196,14 +196,15 @@ public class ModService
     public ModMetaInfo LoadModMeta(string modFolderPath, string folderName, bool hasPck, bool hasDll)
     {
         var metaFile = Path.Combine(modFolderPath, MetaFileName);
-        var modSameNameMetaFile = Path.Combine(modFolderPath, $"{folderName}.json");
+        var modBaseName = ResolveModBaseName(modFolderPath, folderName);
+        var modSameNameMetaFile = Path.Combine(modFolderPath, $"{modBaseName}.json");
 
         var customMeta = TryReadCustomMeta(metaFile, folderName);
         var sameNameMeta = TryReadSameNameMeta(modSameNameMetaFile);
 
         if (sameNameMeta == null)
         {
-            sameNameMeta = BuildSameNameMetaFromCustom(customMeta, folderName, hasPck, hasDll);
+            sameNameMeta = BuildSameNameMetaFromCustom(customMeta, modBaseName, folderName, hasPck, hasDll);
             TryWriteSameNameMetaFile(modSameNameMetaFile, sameNameMeta);
         }
 
@@ -212,9 +213,54 @@ public class ModService
             return customMeta;
         }
 
-        var created = ConvertSameNameMetaToCustomMeta(sameNameMeta, folderName);
+        var created = ConvertSameNameMetaToCustomMeta(sameNameMeta, modBaseName, folderName);
         TryWriteMetaFile(metaFile, created);
         return created;
+    }
+
+    private static string ResolveModBaseName(string modFolderPath, string folderName)
+    {
+        if (!Directory.Exists(modFolderPath))
+        {
+            return string.IsNullOrWhiteSpace(folderName) ? "UnknownMod" : folderName.Trim();
+        }
+
+        var dllNames = Directory
+            .GetFiles(modFolderPath, "*.dll", SearchOption.AllDirectories)
+            .Select(Path.GetFileNameWithoutExtension)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var pckNames = Directory
+            .GetFiles(modFolderPath, "*.pck", SearchOption.AllDirectories)
+            .Select(Path.GetFileNameWithoutExtension)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (dllNames.Count > 0 && pckNames.Count > 0)
+        {
+            var sameName = dllNames.FirstOrDefault(name => pckNames.Contains(name, StringComparer.OrdinalIgnoreCase));
+            if (!string.IsNullOrWhiteSpace(sameName))
+            {
+                return sameName;
+            }
+        }
+
+        if (dllNames.Count > 0)
+        {
+            return dllNames[0];
+        }
+
+        if (pckNames.Count > 0)
+        {
+            return pckNames[0];
+        }
+
+        return string.IsNullOrWhiteSpace(folderName) ? "UnknownMod" : folderName.Trim();
     }
 
     private static ModMetaInfo? TryReadCustomMeta(string metaFile, string folderName)
@@ -253,9 +299,11 @@ public class ModService
         }
     }
 
-    private static ModSameNameMeta BuildSameNameMetaFromCustom(ModMetaInfo? customMeta, string folderName, bool hasPck, bool hasDll)
+    private static ModSameNameMeta BuildSameNameMetaFromCustom(ModMetaInfo? customMeta, string modBaseName, string folderName, bool hasPck, bool hasDll)
     {
-        var id = string.IsNullOrWhiteSpace(folderName) ? "UnknownMod" : folderName.Trim();
+        var id = string.IsNullOrWhiteSpace(modBaseName)
+            ? (string.IsNullOrWhiteSpace(folderName) ? "UnknownMod" : folderName.Trim())
+            : modBaseName.Trim();
         var name = customMeta == null || string.IsNullOrWhiteSpace(customMeta.Name) ? id : customMeta.Name.Trim();
         var author = customMeta == null ? string.Empty : customMeta.Author.Trim();
         var description = customMeta == null ? string.Empty : customMeta.Description.Trim();
@@ -275,14 +323,17 @@ public class ModService
         };
     }
 
-    private static ModMetaInfo ConvertSameNameMetaToCustomMeta(ModSameNameMeta? sameNameMeta, string folderName)
+    private static ModMetaInfo ConvertSameNameMetaToCustomMeta(ModSameNameMeta? sameNameMeta, string modBaseName, string folderName)
     {
         if (sameNameMeta == null)
         {
-            return new ModMetaInfo { Name = folderName };
+            var defaultName = string.IsNullOrWhiteSpace(modBaseName) ? folderName : modBaseName;
+            return new ModMetaInfo { Name = defaultName };
         }
 
-        var fallbackName = string.IsNullOrWhiteSpace(sameNameMeta.Id) ? folderName : sameNameMeta.Id.Trim();
+        var fallbackName = !string.IsNullOrWhiteSpace(sameNameMeta.Id)
+            ? sameNameMeta.Id.Trim()
+            : (string.IsNullOrWhiteSpace(modBaseName) ? folderName : modBaseName);
         return new ModMetaInfo
         {
             Name = string.IsNullOrWhiteSpace(sameNameMeta.Name) ? fallbackName : sameNameMeta.Name.Trim(),
