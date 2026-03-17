@@ -2,6 +2,7 @@ using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using StS2ModManager.Models;
 
 namespace StS2ModManager.Services;
@@ -9,6 +10,10 @@ namespace StS2ModManager.Services;
 public class ModService
 {
     private const string MetaFileName = "modinfo.json";
+    private static readonly JsonSerializerOptions JsonIndentedOptions = new()
+    {
+        WriteIndented = true
+    };
 
     private readonly GamePathService _pathService;
     private readonly SettingsService _settingsService;
@@ -121,11 +126,8 @@ public class ModService
             };
 
             var metaFile = Path.Combine(folderPath, MetaFileName);
-            var json = JsonSerializer.Serialize(normalizedMeta, new JsonSerializerOptions
-            {
-                WriteIndented = true
-            });
-            File.WriteAllText(metaFile, json);
+            var json = JsonSerializer.Serialize(normalizedMeta, JsonIndentedOptions);
+            File.WriteAllText(metaFile, json, Encoding.UTF8);
             return true;
         }
         catch
@@ -136,7 +138,11 @@ public class ModService
 
     public ModMetaInfo LoadModMetaByPath(string folderPath, string folderName)
     {
-        return LoadModMeta(folderPath, folderName);
+        var hasPck = Directory.Exists(folderPath)
+            && Directory.GetFiles(folderPath, "*.pck", SearchOption.AllDirectories).Length > 0;
+        var hasDll = Directory.Exists(folderPath)
+            && Directory.GetFiles(folderPath, "*.dll", SearchOption.AllDirectories).Length > 0;
+        return LoadModMeta(folderPath, folderName, hasPck, hasDll);
     }
 
     public bool SaveModMeta(ModInfo mod, ModMetaInfo meta)
@@ -164,11 +170,8 @@ public class ModService
             };
 
             var metaFile = Path.Combine(mod.FolderPath, MetaFileName);
-            var json = JsonSerializer.Serialize(normalizedMeta, new JsonSerializerOptions
-            {
-                WriteIndented = true
-            });
-            File.WriteAllText(metaFile, json);
+            var json = JsonSerializer.Serialize(normalizedMeta, JsonIndentedOptions);
+            File.WriteAllText(metaFile, json, Encoding.UTF8);
 
             mod.DisplayName = string.IsNullOrWhiteSpace(normalizedMeta.Name) ? mod.FolderName : normalizedMeta.Name;
             mod.Tag = normalizedMeta.Tag;
@@ -190,28 +193,104 @@ public class ModService
         }
     }
 
-    public ModMetaInfo LoadModMeta(string modFolderPath, string folderName)
+    public ModMetaInfo LoadModMeta(string modFolderPath, string folderName, bool hasPck, bool hasDll)
     {
         var metaFile = Path.Combine(modFolderPath, MetaFileName);
+        var modSameNameMetaFile = Path.Combine(modFolderPath, $"{folderName}.json");
+
+        var customMeta = TryReadCustomMeta(metaFile, folderName);
+        var sameNameMeta = TryReadSameNameMeta(modSameNameMetaFile);
+
+        if (sameNameMeta == null)
+        {
+            sameNameMeta = BuildSameNameMetaFromCustom(customMeta, folderName, hasPck, hasDll);
+            TryWriteSameNameMetaFile(modSameNameMetaFile, sameNameMeta);
+        }
+
+        if (customMeta != null)
+        {
+            return customMeta;
+        }
+
+        var created = ConvertSameNameMetaToCustomMeta(sameNameMeta, folderName);
+        TryWriteMetaFile(metaFile, created);
+        return created;
+    }
+
+    private static ModMetaInfo? TryReadCustomMeta(string metaFile, string folderName)
+    {
         if (!File.Exists(metaFile))
         {
-            var created = new ModMetaInfo
-            {
-                Name = folderName
-            };
-            TryWriteMetaFile(metaFile, created);
-            return created;
+            return null;
         }
 
         try
         {
-            var json = File.ReadAllText(metaFile);
+            var json = File.ReadAllText(metaFile, Encoding.UTF8);
             return JsonSerializer.Deserialize<ModMetaInfo>(json) ?? new ModMetaInfo { Name = folderName };
         }
         catch
         {
+            return null;
+        }
+    }
+
+    private static ModSameNameMeta? TryReadSameNameMeta(string sameNameMetaFile)
+    {
+        if (!File.Exists(sameNameMetaFile))
+        {
+            return null;
+        }
+
+        try
+        {
+            var json = File.ReadAllText(sameNameMetaFile, Encoding.UTF8);
+            return JsonSerializer.Deserialize<ModSameNameMeta>(json);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static ModSameNameMeta BuildSameNameMetaFromCustom(ModMetaInfo? customMeta, string folderName, bool hasPck, bool hasDll)
+    {
+        var id = string.IsNullOrWhiteSpace(folderName) ? "UnknownMod" : folderName.Trim();
+        var name = customMeta == null || string.IsNullOrWhiteSpace(customMeta.Name) ? id : customMeta.Name.Trim();
+        var author = customMeta == null ? string.Empty : customMeta.Author.Trim();
+        var description = customMeta == null ? string.Empty : customMeta.Description.Trim();
+        var version = customMeta == null ? string.Empty : customMeta.Version.Trim();
+
+        return new ModSameNameMeta
+        {
+            Id = id,
+            Name = name,
+            Author = author,
+            Description = description,
+            Version = version,
+            HasPck = hasPck,
+            HasDll = hasDll,
+            Dependencies = [],
+            AffectsGameplay = true
+        };
+    }
+
+    private static ModMetaInfo ConvertSameNameMetaToCustomMeta(ModSameNameMeta? sameNameMeta, string folderName)
+    {
+        if (sameNameMeta == null)
+        {
             return new ModMetaInfo { Name = folderName };
         }
+
+        var fallbackName = string.IsNullOrWhiteSpace(sameNameMeta.Id) ? folderName : sameNameMeta.Id.Trim();
+        return new ModMetaInfo
+        {
+            Name = string.IsNullOrWhiteSpace(sameNameMeta.Name) ? fallbackName : sameNameMeta.Name.Trim(),
+            Author = sameNameMeta.Author?.Trim() ?? string.Empty,
+            Version = sameNameMeta.Version?.Trim() ?? string.Empty,
+            Description = sameNameMeta.Description?.Trim() ?? string.Empty,
+            Detail = sameNameMeta.Description?.Trim() ?? string.Empty
+        };
     }
 
     public List<ModInfo> ScanModsFromSources(IEnumerable<ModSourceInfo> sources)
@@ -316,7 +395,7 @@ public class ModService
             var lastWrite = Directory.GetLastWriteTime(folder);
             var size = CalculateDirectorySize(folder);
             var modKey = $"{source.Path}|{folderName}";
-            var meta = LoadModMeta(folder, folderName);
+            var meta = LoadModMeta(folder, folderName, hasPck, hasDll);
             mods.Add(new ModInfo
             {
                 ModKey = modKey,
@@ -607,15 +686,55 @@ public class ModService
     {
         try
         {
-            var json = JsonSerializer.Serialize(meta, new JsonSerializerOptions
-            {
-                WriteIndented = true
-            });
-            File.WriteAllText(metaFile, json);
+            var json = JsonSerializer.Serialize(meta, JsonIndentedOptions);
+            File.WriteAllText(metaFile, json, Encoding.UTF8);
         }
         catch
         {
             // 忽略自动生成失败
         }
+    }
+
+    private static void TryWriteSameNameMetaFile(string sameNameMetaFile, ModSameNameMeta meta)
+    {
+        try
+        {
+            var json = JsonSerializer.Serialize(meta, JsonIndentedOptions);
+            File.WriteAllText(sameNameMetaFile, json, Encoding.UTF8);
+        }
+        catch
+        {
+            // 忽略自动生成失败
+        }
+    }
+
+    private class ModSameNameMeta
+    {
+        [JsonPropertyName("id")]
+        public string Id { get; set; } = string.Empty;
+
+        [JsonPropertyName("name")]
+        public string Name { get; set; } = string.Empty;
+
+        [JsonPropertyName("author")]
+        public string Author { get; set; } = string.Empty;
+
+        [JsonPropertyName("description")]
+        public string Description { get; set; } = string.Empty;
+
+        [JsonPropertyName("version")]
+        public string Version { get; set; } = string.Empty;
+
+        [JsonPropertyName("has_pck")]
+        public bool HasPck { get; set; }
+
+        [JsonPropertyName("has_dll")]
+        public bool HasDll { get; set; }
+
+        [JsonPropertyName("dependencies")]
+        public List<string> Dependencies { get; set; } = [];
+
+        [JsonPropertyName("affects_gameplay")]
+        public bool AffectsGameplay { get; set; } = true;
     }
 }
