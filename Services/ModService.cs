@@ -166,31 +166,24 @@ public class ModService
             return false;
         }
 
-        var jsonContent = TryExtractJsonTextFromDll(dllPath, modBaseName);
-        if (string.IsNullOrWhiteSpace(jsonContent))
+        ModSameNameMeta? extractedMeta = TryExtractSameNameMetaFromDll(dllPath, modBaseName);
+        sameNameJsonPath = Path.Combine(folderPath, $"{modBaseName}.json");
+        if (extractedMeta == null)
         {
-            errorMessage = "dll中未找到可提取的json资源";
-            return false;
-        }
-
-        ModSameNameMeta? extractedMeta;
-        try
-        {
-            extractedMeta = JsonSerializer.Deserialize<ModSameNameMeta>(jsonContent);
-        }
-        catch
-        {
-            errorMessage = "提取到的json格式无效";
-            return false;
+            extractedMeta = TryReadSameNameMeta(sameNameJsonPath);
         }
 
         if (extractedMeta == null)
         {
-            errorMessage = "提取到的json为空";
+            extractedMeta = TryReadManifestMeta(Path.Combine(folderPath, "mod_manifest.json"), modBaseName, folderPath);
+        }
+
+        if (extractedMeta == null)
+        {
+            errorMessage = "未找到可用的提取来源（dll资源/同名json/mod_manifest）";
             return false;
         }
 
-        sameNameJsonPath = Path.Combine(folderPath, $"{modBaseName}.json");
         TryWriteSameNameMetaFile(sameNameJsonPath, extractedMeta);
 
         var parsedMeta = ConvertSameNameMetaToCustomMeta(extractedMeta, modBaseName, folderName);
@@ -334,7 +327,7 @@ public class ModService
         return string.IsNullOrWhiteSpace(exactNamePath) ? dllFiles[0] : exactNamePath;
     }
 
-    private static string? TryExtractJsonTextFromDll(string dllPath, string modBaseName)
+    private static ModSameNameMeta? TryExtractSameNameMetaFromDll(string dllPath, string modBaseName)
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "StS2ModManager", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(tempDir);
@@ -353,28 +346,32 @@ public class ModService
             }
 
             var preferredSuffix = $"{modBaseName}.json";
-            var targetResource = resourceNames.FirstOrDefault(x =>
-                                     x.EndsWith(preferredSuffix, StringComparison.OrdinalIgnoreCase))
-                                 ?? resourceNames.FirstOrDefault(x =>
-                                     x.EndsWith(".json", StringComparison.OrdinalIgnoreCase));
+            var preferredResources = resourceNames
+                .Where(x => x.EndsWith(preferredSuffix, StringComparison.OrdinalIgnoreCase))
+                .Concat(resourceNames.Where(x => x.EndsWith(".json", StringComparison.OrdinalIgnoreCase)))
+                .Concat(resourceNames)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
 
-            if (string.IsNullOrWhiteSpace(targetResource))
+            foreach (var targetResource in preferredResources)
             {
-                loadContext.Unload();
-                return null;
+                using var stream = assembly.GetManifestResourceStream(targetResource);
+                if (stream == null)
+                {
+                    continue;
+                }
+
+                using var reader = new StreamReader(stream, Encoding.UTF8, true);
+                var content = reader.ReadToEnd();
+                if (TryParseSameNameMeta(content, modBaseName, out var meta))
+                {
+                    loadContext.Unload();
+                    return meta;
+                }
             }
 
-            using var stream = assembly.GetManifestResourceStream(targetResource);
-            if (stream == null)
-            {
-                loadContext.Unload();
-                return null;
-            }
-
-            using var reader = new StreamReader(stream, Encoding.UTF8, true);
-            var content = reader.ReadToEnd();
             loadContext.Unload();
-            return content;
+            return null;
         }
         catch
         {
@@ -393,6 +390,56 @@ public class ModService
             {
                 // 忽略临时目录清理失败
             }
+        }
+    }
+
+    private static ModSameNameMeta? TryReadManifestMeta(string manifestPath, string modBaseName, string folderPath)
+    {
+        if (!File.Exists(manifestPath))
+        {
+            return null;
+        }
+
+        try
+        {
+            var json = File.ReadAllText(manifestPath, Encoding.UTF8);
+            using var doc = JsonDocument.Parse(json);
+            if (doc.RootElement.ValueKind != JsonValueKind.Object)
+            {
+                return null;
+            }
+
+            var root = doc.RootElement;
+            var id = ReadStringProperty(root, "id");
+            var name = ReadStringProperty(root, "name");
+            var author = ReadStringProperty(root, "author");
+            var description = ReadStringProperty(root, "description");
+            var version = ReadStringProperty(root, "version");
+            var affectsGameplay = ReadBoolProperty(root, "affects_gameplay") ?? true;
+            var hasPck = ReadBoolProperty(root, "has_pck")
+                         ?? Directory.GetFiles(folderPath, "*.pck", SearchOption.AllDirectories).Length > 0;
+            var hasDll = ReadBoolProperty(root, "has_dll")
+                         ?? Directory.GetFiles(folderPath, "*.dll", SearchOption.AllDirectories).Length > 0;
+            var dependencies = ReadStringArrayProperty(root, "dependencies");
+
+            var candidate = new ModSameNameMeta
+            {
+                Id = string.IsNullOrWhiteSpace(id) ? modBaseName : id!,
+                Name = string.IsNullOrWhiteSpace(name) ? (string.IsNullOrWhiteSpace(id) ? modBaseName : id!) : name!,
+                Author = author ?? string.Empty,
+                Description = description ?? string.Empty,
+                Version = version ?? string.Empty,
+                HasPck = hasPck,
+                HasDll = hasDll,
+                Dependencies = dependencies,
+                AffectsGameplay = affectsGameplay
+            };
+
+            return IsValidSameNameMeta(candidate) ? candidate : null;
+        }
+        catch
+        {
+            return null;
         }
     }
 
@@ -475,6 +522,93 @@ public class ModService
             Description = sameNameMeta.Description?.Trim() ?? string.Empty,
             Detail = sameNameMeta.Description?.Trim() ?? string.Empty
         };
+    }
+
+    private static bool TryParseSameNameMeta(string jsonContent, string modBaseName, out ModSameNameMeta meta)
+    {
+        meta = null!;
+        try
+        {
+            var candidate = JsonSerializer.Deserialize<ModSameNameMeta>(jsonContent);
+            if (candidate == null)
+            {
+                return false;
+            }
+
+            if (string.IsNullOrWhiteSpace(candidate.Id))
+            {
+                candidate.Id = modBaseName;
+            }
+
+            if (string.IsNullOrWhiteSpace(candidate.Name))
+            {
+                candidate.Name = candidate.Id;
+            }
+
+            if (candidate.Dependencies == null)
+            {
+                candidate.Dependencies = [];
+            }
+
+            if (!IsValidSameNameMeta(candidate))
+            {
+                return false;
+            }
+
+            meta = candidate;
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static bool IsValidSameNameMeta(ModSameNameMeta meta)
+    {
+        var hasIdentity = !string.IsNullOrWhiteSpace(meta.Id) || !string.IsNullOrWhiteSpace(meta.Name);
+        return hasIdentity;
+    }
+
+    private static string? ReadStringProperty(JsonElement element, string name)
+    {
+        if (!element.TryGetProperty(name, out var property))
+        {
+            return null;
+        }
+
+        return property.ValueKind == JsonValueKind.String ? property.GetString() : null;
+    }
+
+    private static bool? ReadBoolProperty(JsonElement element, string name)
+    {
+        if (!element.TryGetProperty(name, out var property))
+        {
+            return null;
+        }
+
+        return property.ValueKind switch
+        {
+            JsonValueKind.True => true,
+            JsonValueKind.False => false,
+            _ => null
+        };
+    }
+
+    private static List<string> ReadStringArrayProperty(JsonElement element, string name)
+    {
+        if (!element.TryGetProperty(name, out var property) || property.ValueKind != JsonValueKind.Array)
+        {
+            return [];
+        }
+
+        return property
+            .EnumerateArray()
+            .Where(x => x.ValueKind == JsonValueKind.String)
+            .Select(x => x.GetString())
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x!.Trim())
+            .ToList();
     }
 
     private static ModMetaInfo MergeCustomMeta(ModMetaInfo existing, ModMetaInfo parsed)
