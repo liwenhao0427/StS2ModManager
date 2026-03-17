@@ -103,6 +103,14 @@ dotnet publish "StS2ModManager.csproj" -c Release -r win-x64 -p:PublishSingleFil
 dotnet publish "StS2ModManager.csproj" -c Release -r win-x64 -p:PublishSingleFile=true -p:SelfContained=true -o "ReleaseSingle/SelfContained"
 ```
 
+#### 5.4 GitHub Release 规范
+
+- 仅上传两个 exe 文件，不上传 pdb/zip/目录。
+- 本地输出命名保持：
+  - `StS2ModManager.依赖.Net环境版本.exe`
+  - `StS2ModManager.exe`
+- GitHub 资产中，依赖版可能显示为 `StS2ModManager.Net.exe`（与本地依赖版对应）。
+
 ### 6. 常见问题
 
 - 启动失败：先检查游戏目录是否包含 `SlayTheSpire2.exe`。

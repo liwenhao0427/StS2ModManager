@@ -851,6 +851,32 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private void ExtractJsonFromDll()
+    {
+        if (string.IsNullOrWhiteSpace(SelectedModFolderPath))
+        {
+            MessageBox.Show(L("Msg.SelectModFirst"), L("Dialog.Title.Tip"), MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        var success = _modService.ExtractSameNameJsonFromDllAndUpdateMeta(
+            SelectedModFolderPath,
+            SelectedModFolderName,
+            out var jsonPath,
+            out var errorMessage);
+
+        if (!success)
+        {
+            var detail = string.IsNullOrWhiteSpace(errorMessage) ? string.Empty : $"\n{errorMessage}";
+            MessageBox.Show($"{L("Msg.ModJsonExtractFailed")}{detail}", L("Dialog.Title.Error"), MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
+
+        ReloadModMetaAndViews();
+        StatusMessage = F("Status.ModJsonExtracted", jsonPath);
+    }
+
+    [RelayCommand]
     private void OpenUrl(string? url)
     {
         if (string.IsNullOrWhiteSpace(url))

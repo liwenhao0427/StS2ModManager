@@ -1,4 +1,6 @@
 using System.IO;
+using System.Reflection;
+using System.Runtime.Loader;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -145,6 +147,60 @@ public class ModService
         return LoadModMeta(folderPath, folderName, hasPck, hasDll);
     }
 
+    public bool ExtractSameNameJsonFromDllAndUpdateMeta(string folderPath, string folderName, out string sameNameJsonPath, out string errorMessage)
+    {
+        sameNameJsonPath = string.Empty;
+        errorMessage = string.Empty;
+
+        if (string.IsNullOrWhiteSpace(folderPath) || !Directory.Exists(folderPath))
+        {
+            errorMessage = "Mod目录不存在";
+            return false;
+        }
+
+        var modBaseName = ResolveModBaseName(folderPath, folderName);
+        var dllPath = ResolvePrimaryDllPath(folderPath, modBaseName);
+        if (string.IsNullOrWhiteSpace(dllPath))
+        {
+            errorMessage = "未找到可用的dll文件";
+            return false;
+        }
+
+        var jsonContent = TryExtractJsonTextFromDll(dllPath, modBaseName);
+        if (string.IsNullOrWhiteSpace(jsonContent))
+        {
+            errorMessage = "dll中未找到可提取的json资源";
+            return false;
+        }
+
+        ModSameNameMeta? extractedMeta;
+        try
+        {
+            extractedMeta = JsonSerializer.Deserialize<ModSameNameMeta>(jsonContent);
+        }
+        catch
+        {
+            errorMessage = "提取到的json格式无效";
+            return false;
+        }
+
+        if (extractedMeta == null)
+        {
+            errorMessage = "提取到的json为空";
+            return false;
+        }
+
+        sameNameJsonPath = Path.Combine(folderPath, $"{modBaseName}.json");
+        TryWriteSameNameMetaFile(sameNameJsonPath, extractedMeta);
+
+        var parsedMeta = ConvertSameNameMetaToCustomMeta(extractedMeta, modBaseName, folderName);
+        var customMetaPath = Path.Combine(folderPath, MetaFileName);
+        var existingCustom = TryReadCustomMeta(customMetaPath, folderName) ?? new ModMetaInfo();
+        var merged = MergeCustomMeta(existingCustom, parsedMeta);
+        TryWriteMetaFile(customMetaPath, merged);
+        return true;
+    }
+
     public bool SaveModMeta(ModInfo mod, ModMetaInfo meta)
     {
         if (mod == null || string.IsNullOrWhiteSpace(mod.FolderPath) || !Directory.Exists(mod.FolderPath))
@@ -263,6 +319,83 @@ public class ModService
         return string.IsNullOrWhiteSpace(folderName) ? "UnknownMod" : folderName.Trim();
     }
 
+    private static string? ResolvePrimaryDllPath(string modFolderPath, string modBaseName)
+    {
+        var dllFiles = Directory.GetFiles(modFolderPath, "*.dll", SearchOption.AllDirectories)
+            .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (dllFiles.Count == 0)
+        {
+            return null;
+        }
+
+        var exactNamePath = dllFiles.FirstOrDefault(x =>
+            string.Equals(Path.GetFileNameWithoutExtension(x), modBaseName, StringComparison.OrdinalIgnoreCase));
+        return string.IsNullOrWhiteSpace(exactNamePath) ? dllFiles[0] : exactNamePath;
+    }
+
+    private static string? TryExtractJsonTextFromDll(string dllPath, string modBaseName)
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "StS2ModManager", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        var tempDllPath = Path.Combine(tempDir, Path.GetFileName(dllPath));
+
+        try
+        {
+            File.Copy(dllPath, tempDllPath, true);
+            var loadContext = new ModAssemblyLoadContext();
+            var assembly = loadContext.LoadFromAssemblyPath(tempDllPath);
+            var resourceNames = assembly.GetManifestResourceNames();
+            if (resourceNames.Length == 0)
+            {
+                loadContext.Unload();
+                return null;
+            }
+
+            var preferredSuffix = $"{modBaseName}.json";
+            var targetResource = resourceNames.FirstOrDefault(x =>
+                                     x.EndsWith(preferredSuffix, StringComparison.OrdinalIgnoreCase))
+                                 ?? resourceNames.FirstOrDefault(x =>
+                                     x.EndsWith(".json", StringComparison.OrdinalIgnoreCase));
+
+            if (string.IsNullOrWhiteSpace(targetResource))
+            {
+                loadContext.Unload();
+                return null;
+            }
+
+            using var stream = assembly.GetManifestResourceStream(targetResource);
+            if (stream == null)
+            {
+                loadContext.Unload();
+                return null;
+            }
+
+            using var reader = new StreamReader(stream, Encoding.UTF8, true);
+            var content = reader.ReadToEnd();
+            loadContext.Unload();
+            return content;
+        }
+        catch
+        {
+            return null;
+        }
+        finally
+        {
+            try
+            {
+                if (Directory.Exists(tempDir))
+                {
+                    Directory.Delete(tempDir, true);
+                }
+            }
+            catch
+            {
+                // 忽略临时目录清理失败
+            }
+        }
+    }
+
     private static ModMetaInfo? TryReadCustomMeta(string metaFile, string folderName)
     {
         if (!File.Exists(metaFile))
@@ -341,6 +474,24 @@ public class ModService
             Version = sameNameMeta.Version?.Trim() ?? string.Empty,
             Description = sameNameMeta.Description?.Trim() ?? string.Empty,
             Detail = sameNameMeta.Description?.Trim() ?? string.Empty
+        };
+    }
+
+    private static ModMetaInfo MergeCustomMeta(ModMetaInfo existing, ModMetaInfo parsed)
+    {
+        return new ModMetaInfo
+        {
+            Name = string.IsNullOrWhiteSpace(parsed.Name) ? existing.Name : parsed.Name,
+            Tag = existing.Tag,
+            Version = string.IsNullOrWhiteSpace(parsed.Version) ? existing.Version : parsed.Version,
+            Detail = string.IsNullOrWhiteSpace(parsed.Detail) ? existing.Detail : parsed.Detail,
+            Remark = existing.Remark,
+            Author = string.IsNullOrWhiteSpace(parsed.Author) ? existing.Author : parsed.Author,
+            DownloadUrl = existing.DownloadUrl,
+            AuthorUrl = existing.AuthorUrl,
+            DetailUrl = existing.DetailUrl,
+            SocialUrl = existing.SocialUrl,
+            Description = string.IsNullOrWhiteSpace(parsed.Description) ? existing.Description : parsed.Description
         };
     }
 
@@ -787,5 +938,17 @@ public class ModService
 
         [JsonPropertyName("affects_gameplay")]
         public bool AffectsGameplay { get; set; } = true;
+    }
+
+    private sealed class ModAssemblyLoadContext : AssemblyLoadContext
+    {
+        public ModAssemblyLoadContext() : base(isCollectible: true)
+        {
+        }
+
+        protected override Assembly? Load(AssemblyName assemblyName)
+        {
+            return null;
+        }
     }
 }
