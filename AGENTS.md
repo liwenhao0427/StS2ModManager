@@ -59,3 +59,23 @@
 - 发布文件命名约定：
   - 依赖 .NET 运行时版本命名为：`StS2ModManager.依赖.Net环境版本.exe`
   - 包含依赖版本命名为：`StS2ModManager.exe`
+
+### 发布强制命令（必须按此执行，禁止自行改参数）
+
+1. 打包 framework-dependent（依赖 .NET）：
+   - `dotnet publish ".\StS2ModManager.csproj" -c Release -r win-x64 -p:PublishSingleFile=true -p:SelfContained=false -p:EnableCompressionInSingleFile=false -o ".\ReleaseSingle\FrameworkDependent"`
+
+2. 打包 self-contained（自包含）：
+   - `dotnet publish ".\StS2ModManager.csproj" -c Release -r win-x64 -p:PublishSingleFile=true -p:SelfContained=true -o ".\ReleaseSingle\SelfContained"`
+
+3. 复制并命名最终文件（禁止反向复制）：
+   - `Copy-Item .\ReleaseSingle\FrameworkDependent\StS2ModManager.exe .\ReleaseSingle\StS2ModManager.依赖.Net环境版本.exe -Force`
+   - `Copy-Item .\ReleaseSingle\FrameworkDependent\StS2ModManager.exe .\ReleaseSingle\StS2ModManager.Net.exe -Force`
+   - `Copy-Item .\ReleaseSingle\SelfContained\StS2ModManager.exe .\ReleaseSingle\StS2ModManager.exe -Force`
+
+4. 发布前强制校验大小（不满足即停止发布）：
+   - 依赖版（`StS2ModManager.依赖.Net环境版本.exe`）必须 `< 10MB`
+   - 自包含版（`StS2ModManager.exe`）必须 `> 30MB`
+
+5. GitHub Release 上传命令（仅上传两个exe）：
+   - `$env:GODEBUG='http2client=0'; gh release create <tag> ".\ReleaseSingle\StS2ModManager.Net.exe" ".\ReleaseSingle\StS2ModManager.exe" --title "<tag>" --notes "<notes>" --target main`
