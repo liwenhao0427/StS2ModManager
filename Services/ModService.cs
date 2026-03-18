@@ -159,6 +159,8 @@ public class ModService
         }
 
         var modBaseName = ResolveModBaseName(folderPath, folderName);
+        var hasPck = Directory.GetFiles(folderPath, "*.pck", SearchOption.AllDirectories).Length > 0;
+        var hasDll = Directory.GetFiles(folderPath, "*.dll", SearchOption.AllDirectories).Length > 0;
         var dllPath = ResolvePrimaryDllPath(folderPath, modBaseName);
         if (string.IsNullOrWhiteSpace(dllPath))
         {
@@ -184,6 +186,7 @@ public class ModService
             return false;
         }
 
+        extractedMeta = NormalizeSameNameMeta(extractedMeta, modBaseName, folderName, hasPck, hasDll);
         TryWriteSameNameMetaFile(sameNameJsonPath, extractedMeta);
 
         var parsedMeta = ConvertSameNameMetaToCustomMeta(extractedMeta, modBaseName, folderName);
@@ -254,8 +257,13 @@ public class ModService
         if (sameNameMeta == null)
         {
             sameNameMeta = BuildSameNameMetaFromCustom(customMeta, modBaseName, folderName, hasPck, hasDll);
-            TryWriteSameNameMetaFile(modSameNameMetaFile, sameNameMeta);
         }
+        else
+        {
+            sameNameMeta = NormalizeSameNameMeta(sameNameMeta, modBaseName, folderName, hasPck, hasDll);
+        }
+
+        TryWriteSameNameMetaFile(modSameNameMetaFile, sameNameMeta);
 
         if (customMeta != null)
         {
@@ -500,6 +508,26 @@ public class ModService
             HasDll = hasDll,
             Dependencies = [],
             AffectsGameplay = true
+        };
+    }
+
+    private static ModSameNameMeta NormalizeSameNameMeta(ModSameNameMeta source, string modBaseName, string folderName, bool hasPck, bool hasDll)
+    {
+        var id = string.IsNullOrWhiteSpace(modBaseName)
+            ? (string.IsNullOrWhiteSpace(folderName) ? "UnknownMod" : folderName.Trim())
+            : modBaseName.Trim();
+
+        return new ModSameNameMeta
+        {
+            Id = id,
+            Name = string.IsNullOrWhiteSpace(source.Name) ? id : source.Name.Trim(),
+            Author = source.Author?.Trim() ?? string.Empty,
+            Description = source.Description?.Trim() ?? string.Empty,
+            Version = source.Version?.Trim() ?? string.Empty,
+            HasPck = hasPck,
+            HasDll = hasDll,
+            Dependencies = source.Dependencies ?? [],
+            AffectsGameplay = source.AffectsGameplay
         };
     }
 
