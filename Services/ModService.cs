@@ -112,19 +112,26 @@ public class ModService
 
         try
         {
+            var normalizedDetail = meta.Detail.Trim();
+            var normalizedDescription = meta.Description.Trim();
+            if (string.IsNullOrWhiteSpace(normalizedDescription) && !string.IsNullOrWhiteSpace(normalizedDetail))
+            {
+                normalizedDescription = normalizedDetail;
+            }
+
             var normalizedMeta = new ModMetaInfo
             {
                 Name = meta.Name.Trim(),
                 Tag = meta.Tag.Trim(),
                 Version = meta.Version.Trim(),
-                Detail = meta.Detail.Trim(),
+                Detail = normalizedDetail,
                 Remark = meta.Remark.Trim(),
                 Author = meta.Author.Trim(),
                 DownloadUrl = meta.DownloadUrl.Trim(),
                 AuthorUrl = meta.AuthorUrl.Trim(),
                 DetailUrl = meta.DetailUrl.Trim(),
                 SocialUrl = meta.SocialUrl.Trim(),
-                Description = meta.Description.Trim()
+                Description = normalizedDescription
             };
 
             var modBaseName = ResolveModBaseName(folderPath, folderName);
@@ -230,19 +237,26 @@ public class ModService
 
         try
         {
+            var normalizedDetail = meta.Detail.Trim();
+            var normalizedDescription = meta.Description.Trim();
+            if (string.IsNullOrWhiteSpace(normalizedDescription) && !string.IsNullOrWhiteSpace(normalizedDetail))
+            {
+                normalizedDescription = normalizedDetail;
+            }
+
             var normalizedMeta = new ModMetaInfo
             {
                 Name = meta.Name.Trim(),
                 Tag = meta.Tag.Trim(),
                 Version = meta.Version.Trim(),
-                Detail = meta.Detail.Trim(),
+                Detail = normalizedDetail,
                 Remark = meta.Remark.Trim(),
                 Author = meta.Author.Trim(),
                 DownloadUrl = meta.DownloadUrl.Trim(),
                 AuthorUrl = meta.AuthorUrl.Trim(),
                 DetailUrl = meta.DetailUrl.Trim(),
                 SocialUrl = meta.SocialUrl.Trim(),
-                Description = meta.Description.Trim()
+                Description = normalizedDescription
             };
 
             if (!SaveModMetaByPath(mod.FolderPath, mod.FolderName, normalizedMeta))
@@ -520,7 +534,12 @@ public class ModService
             : modBaseName.Trim();
         var name = customMeta == null || string.IsNullOrWhiteSpace(customMeta.Name) ? id : customMeta.Name.Trim();
         var author = customMeta == null ? string.Empty : customMeta.Author.Trim();
+        var detail = customMeta?.Detail?.Trim() ?? string.Empty;
         var description = customMeta == null ? string.Empty : customMeta.Description.Trim();
+        if (string.IsNullOrWhiteSpace(description) && !string.IsNullOrWhiteSpace(detail))
+        {
+            description = detail;
+        }
         var version = customMeta == null ? string.Empty : customMeta.Version.Trim();
 
         return new ModSameNameMeta
@@ -531,7 +550,7 @@ public class ModService
             Description = description,
             Version = version,
             Tag = customMeta?.Tag?.Trim() ?? string.Empty,
-            Detail = customMeta?.Detail?.Trim() ?? string.Empty,
+            Detail = detail,
             Remark = customMeta?.Remark?.Trim() ?? string.Empty,
             DownloadUrl = customMeta?.DownloadUrl?.Trim() ?? string.Empty,
             AuthorUrl = customMeta?.AuthorUrl?.Trim() ?? string.Empty,
@@ -549,16 +568,22 @@ public class ModService
         var id = string.IsNullOrWhiteSpace(modBaseName)
             ? (string.IsNullOrWhiteSpace(folderName) ? "UnknownMod" : folderName.Trim())
             : modBaseName.Trim();
+        var detail = source.Detail?.Trim() ?? string.Empty;
+        var description = source.Description?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(description) && !string.IsNullOrWhiteSpace(detail))
+        {
+            description = detail;
+        }
 
         return new ModSameNameMeta
         {
             Id = id,
             Name = string.IsNullOrWhiteSpace(source.Name) ? id : source.Name.Trim(),
             Author = source.Author?.Trim() ?? string.Empty,
-            Description = source.Description?.Trim() ?? string.Empty,
+            Description = description,
             Version = source.Version?.Trim() ?? string.Empty,
             Tag = source.Tag?.Trim() ?? string.Empty,
-            Detail = source.Detail?.Trim() ?? string.Empty,
+            Detail = detail,
             Remark = source.Remark?.Trim() ?? string.Empty,
             DownloadUrl = source.DownloadUrl?.Trim() ?? string.Empty,
             AuthorUrl = source.AuthorUrl?.Trim() ?? string.Empty,
@@ -609,6 +634,10 @@ public class ModService
         sameNameMeta.Description = customMeta.Description?.Trim() ?? string.Empty;
         sameNameMeta.Tag = customMeta.Tag?.Trim() ?? string.Empty;
         sameNameMeta.Detail = customMeta.Detail?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(sameNameMeta.Description) && !string.IsNullOrWhiteSpace(sameNameMeta.Detail))
+        {
+            sameNameMeta.Description = sameNameMeta.Detail;
+        }
         sameNameMeta.Remark = customMeta.Remark?.Trim() ?? string.Empty;
         sameNameMeta.DownloadUrl = customMeta.DownloadUrl?.Trim() ?? string.Empty;
         sameNameMeta.AuthorUrl = customMeta.AuthorUrl?.Trim() ?? string.Empty;

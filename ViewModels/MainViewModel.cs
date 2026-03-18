@@ -323,18 +323,7 @@ public partial class MainViewModel : ObservableObject
         }
 
         var meta = _modService.LoadModMetaByPath(value, SelectedModFolderName);
-        ModNameInput = string.IsNullOrWhiteSpace(meta.Name) ? SelectedModFolderName : meta.Name;
-        SetModTags(ParseTags(meta.Tag));
-        NewTagInput = string.Empty;
-        ModVersionInput = meta.Version ?? string.Empty;
-        ModDetailInput = meta.Detail ?? string.Empty;
-        ModAuthorInput = meta.Author ?? string.Empty;
-        ModDownloadUrlInput = meta.DownloadUrl ?? string.Empty;
-        ModRemarkInput = meta.Remark ?? string.Empty;
-        ModAuthorUrlInput = meta.AuthorUrl ?? string.Empty;
-        ModDetailUrlInput = meta.DetailUrl ?? string.Empty;
-        ModSocialUrlInput = meta.SocialUrl ?? string.Empty;
-        ModDescriptionInput = meta.Description ?? string.Empty;
+        ApplyMetaToUiInputs(meta, SelectedModFolderName);
         SelectedModUpdatedDisplay = Directory.Exists(value)
             ? Directory.GetLastWriteTime(value).ToString("yyyy-MM-dd HH:mm")
             : string.Empty;
@@ -752,20 +741,26 @@ public partial class MainViewModel : ObservableObject
         }
 
         ModTagInput = JoinTags(ModTags);
+        var detailValue = ModDescriptionInput?.Trim() ?? string.Empty;
+        var descriptionValue = ModDetailInput?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(descriptionValue) && !string.IsNullOrWhiteSpace(detailValue))
+        {
+            descriptionValue = detailValue;
+        }
 
         var success = _modService.SaveModMetaByPath(SelectedModFolderPath, SelectedModFolderName, new ModMetaInfo
         {
             Name = ModNameInput,
             Tag = ModTagInput,
             Version = ModVersionInput,
-            Detail = ModDetailInput,
+            Detail = detailValue,
             Author = ModAuthorInput,
             DownloadUrl = ModDownloadUrlInput,
             Remark = ModRemarkInput,
             AuthorUrl = ModAuthorUrlInput,
             DetailUrl = ModDetailUrlInput,
             SocialUrl = ModSocialUrlInput,
-            Description = ModDescriptionInput
+            Description = descriptionValue
         });
 
         if (!success)
@@ -789,17 +784,7 @@ public partial class MainViewModel : ObservableObject
         var folderName = SelectedModFolderName;
         var meta = _modService.LoadModMetaByPath(path, folderName);
 
-        ModNameInput = string.IsNullOrWhiteSpace(meta.Name) ? folderName : meta.Name;
-        SetModTags(ParseTags(meta.Tag));
-        ModVersionInput = meta.Version ?? string.Empty;
-        ModDetailInput = meta.Detail ?? string.Empty;
-        ModAuthorInput = meta.Author ?? string.Empty;
-        ModDownloadUrlInput = meta.DownloadUrl ?? string.Empty;
-        ModRemarkInput = meta.Remark ?? string.Empty;
-        ModAuthorUrlInput = meta.AuthorUrl ?? string.Empty;
-        ModDetailUrlInput = meta.DetailUrl ?? string.Empty;
-        ModSocialUrlInput = meta.SocialUrl ?? string.Empty;
-        ModDescriptionInput = meta.Description ?? string.Empty;
+        ApplyMetaToUiInputs(meta, folderName);
         SelectedModUpdatedDisplay = Directory.Exists(path)
             ? Directory.GetLastWriteTime(path).ToString("yyyy-MM-dd HH:mm")
             : string.Empty;
@@ -829,6 +814,24 @@ public partial class MainViewModel : ObservableObject
         UpdateTagFilters();
         RefreshToolModsFilter();
         RefreshGameMods();
+    }
+
+    private void ApplyMetaToUiInputs(ModMetaInfo meta, string folderName)
+    {
+        ModNameInput = string.IsNullOrWhiteSpace(meta.Name) ? folderName : meta.Name;
+        SetModTags(ParseTags(meta.Tag));
+        NewTagInput = string.Empty;
+        ModVersionInput = meta.Version ?? string.Empty;
+        ModDetailInput = string.IsNullOrWhiteSpace(meta.Description)
+            ? (meta.Detail ?? string.Empty)
+            : (meta.Description ?? string.Empty);
+        ModAuthorInput = meta.Author ?? string.Empty;
+        ModDownloadUrlInput = meta.DownloadUrl ?? string.Empty;
+        ModRemarkInput = meta.Remark ?? string.Empty;
+        ModAuthorUrlInput = meta.AuthorUrl ?? string.Empty;
+        ModDetailUrlInput = meta.DetailUrl ?? string.Empty;
+        ModSocialUrlInput = meta.SocialUrl ?? string.Empty;
+        ModDescriptionInput = meta.Detail ?? string.Empty;
     }
 
     [RelayCommand]
