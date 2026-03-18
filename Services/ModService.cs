@@ -11,7 +11,7 @@ namespace StS2ModManager.Services;
 
 public class ModService
 {
-    private const string MetaFileName = "modinfo.json";
+    private const string LegacyMetaFileName = "modinfo.json";
     private static readonly JsonSerializerOptions JsonIndentedOptions = new()
     {
         WriteIndented = true
@@ -127,9 +127,25 @@ public class ModService
                 Description = meta.Description.Trim()
             };
 
-            var metaFile = Path.Combine(folderPath, MetaFileName);
-            var json = JsonSerializer.Serialize(normalizedMeta, JsonIndentedOptions);
-            File.WriteAllText(metaFile, json, Encoding.UTF8);
+            var modBaseName = ResolveModBaseName(folderPath, folderName);
+            var sameNameMetaFile = Path.Combine(folderPath, $"{modBaseName}.json");
+            var legacyMetaFile = Path.Combine(folderPath, LegacyMetaFileName);
+            var hasPck = Directory.GetFiles(folderPath, "*.pck", SearchOption.AllDirectories).Length > 0;
+            var hasDll = Directory.GetFiles(folderPath, "*.dll", SearchOption.AllDirectories).Length > 0;
+
+            var sameNameMeta = TryReadSameNameMeta(sameNameMetaFile)
+                               ?? BuildSameNameMetaFromCustom(null, modBaseName, folderName, hasPck, hasDll);
+
+            var legacyMeta = TryReadCustomMeta(legacyMetaFile, folderName);
+            if (legacyMeta != null)
+            {
+                sameNameMeta = MergeLegacyCustomMeta(sameNameMeta, legacyMeta);
+            }
+
+            sameNameMeta = NormalizeSameNameMeta(sameNameMeta, modBaseName, folderName, hasPck, hasDll);
+            sameNameMeta = ApplyCustomMetaToSameNameMeta(sameNameMeta, normalizedMeta);
+            TryWriteSameNameMetaFile(sameNameMetaFile, sameNameMeta);
+            TryDeleteFile(legacyMetaFile);
             return true;
         }
         catch
@@ -187,13 +203,21 @@ public class ModService
         }
 
         extractedMeta = NormalizeSameNameMeta(extractedMeta, modBaseName, folderName, hasPck, hasDll);
-        TryWriteSameNameMetaFile(sameNameJsonPath, extractedMeta);
+        var existingSameNameMeta = TryReadSameNameMeta(sameNameJsonPath);
+        if (existingSameNameMeta != null)
+        {
+            extractedMeta = MergeLegacyCustomMeta(extractedMeta, ConvertSameNameMetaToCustomMeta(existingSameNameMeta, modBaseName, folderName));
+        }
 
-        var parsedMeta = ConvertSameNameMetaToCustomMeta(extractedMeta, modBaseName, folderName);
-        var customMetaPath = Path.Combine(folderPath, MetaFileName);
-        var existingCustom = TryReadCustomMeta(customMetaPath, folderName) ?? new ModMetaInfo();
-        var merged = MergeCustomMeta(existingCustom, parsedMeta);
-        TryWriteMetaFile(customMetaPath, merged);
+        var legacyMetaFile = Path.Combine(folderPath, LegacyMetaFileName);
+        var legacyMeta = TryReadCustomMeta(legacyMetaFile, folderName);
+        if (legacyMeta != null)
+        {
+            extractedMeta = MergeLegacyCustomMeta(extractedMeta, legacyMeta);
+        }
+
+        TryWriteSameNameMetaFile(sameNameJsonPath, extractedMeta);
+        TryDeleteFile(legacyMetaFile);
         return true;
     }
 
@@ -221,9 +245,13 @@ public class ModService
                 Description = meta.Description.Trim()
             };
 
-            var metaFile = Path.Combine(mod.FolderPath, MetaFileName);
-            var json = JsonSerializer.Serialize(normalizedMeta, JsonIndentedOptions);
-            File.WriteAllText(metaFile, json, Encoding.UTF8);
+            if (!SaveModMetaByPath(mod.FolderPath, mod.FolderName, normalizedMeta))
+            {
+                return false;
+            }
+
+            var modBaseName = ResolveModBaseName(mod.FolderPath, mod.FolderName);
+            var sameNameMetaFile = Path.Combine(mod.FolderPath, $"{modBaseName}.json");
 
             mod.DisplayName = string.IsNullOrWhiteSpace(normalizedMeta.Name) ? mod.FolderName : normalizedMeta.Name;
             mod.Tag = normalizedMeta.Tag;
@@ -236,7 +264,7 @@ public class ModService
             mod.DetailUrl = normalizedMeta.DetailUrl;
             mod.SocialUrl = normalizedMeta.SocialUrl;
             mod.Description = normalizedMeta.Description;
-            mod.MetadataFilePath = metaFile;
+            mod.MetadataFilePath = sameNameMetaFile;
             return true;
         }
         catch
@@ -247,32 +275,30 @@ public class ModService
 
     public ModMetaInfo LoadModMeta(string modFolderPath, string folderName, bool hasPck, bool hasDll)
     {
-        var metaFile = Path.Combine(modFolderPath, MetaFileName);
+        var legacyMetaFile = Path.Combine(modFolderPath, LegacyMetaFileName);
         var modBaseName = ResolveModBaseName(modFolderPath, folderName);
         var modSameNameMetaFile = Path.Combine(modFolderPath, $"{modBaseName}.json");
 
-        var customMeta = TryReadCustomMeta(metaFile, folderName);
+        var legacyMeta = TryReadCustomMeta(legacyMetaFile, folderName);
         var sameNameMeta = TryReadSameNameMeta(modSameNameMetaFile);
 
         if (sameNameMeta == null)
         {
-            sameNameMeta = BuildSameNameMetaFromCustom(customMeta, modBaseName, folderName, hasPck, hasDll);
+            sameNameMeta = BuildSameNameMetaFromCustom(legacyMeta, modBaseName, folderName, hasPck, hasDll);
         }
         else
         {
             sameNameMeta = NormalizeSameNameMeta(sameNameMeta, modBaseName, folderName, hasPck, hasDll);
         }
 
-        TryWriteSameNameMetaFile(modSameNameMetaFile, sameNameMeta);
-
-        if (customMeta != null)
+        if (legacyMeta != null)
         {
-            return customMeta;
+            sameNameMeta = MergeLegacyCustomMeta(sameNameMeta, legacyMeta);
         }
 
-        var created = ConvertSameNameMetaToCustomMeta(sameNameMeta, modBaseName, folderName);
-        TryWriteMetaFile(metaFile, created);
-        return created;
+        TryWriteSameNameMetaFile(modSameNameMetaFile, sameNameMeta);
+        TryDeleteFile(legacyMetaFile);
+        return ConvertSameNameMetaToCustomMeta(sameNameMeta, modBaseName, folderName);
     }
 
     private static string ResolveModBaseName(string modFolderPath, string folderName)
@@ -504,6 +530,13 @@ public class ModService
             Author = author,
             Description = description,
             Version = version,
+            Tag = customMeta?.Tag?.Trim() ?? string.Empty,
+            Detail = customMeta?.Detail?.Trim() ?? string.Empty,
+            Remark = customMeta?.Remark?.Trim() ?? string.Empty,
+            DownloadUrl = customMeta?.DownloadUrl?.Trim() ?? string.Empty,
+            AuthorUrl = customMeta?.AuthorUrl?.Trim() ?? string.Empty,
+            DetailUrl = customMeta?.DetailUrl?.Trim() ?? string.Empty,
+            SocialUrl = customMeta?.SocialUrl?.Trim() ?? string.Empty,
             HasPck = hasPck,
             HasDll = hasDll,
             Dependencies = [],
@@ -524,10 +557,18 @@ public class ModService
             Author = source.Author?.Trim() ?? string.Empty,
             Description = source.Description?.Trim() ?? string.Empty,
             Version = source.Version?.Trim() ?? string.Empty,
+            Tag = source.Tag?.Trim() ?? string.Empty,
+            Detail = source.Detail?.Trim() ?? string.Empty,
+            Remark = source.Remark?.Trim() ?? string.Empty,
+            DownloadUrl = source.DownloadUrl?.Trim() ?? string.Empty,
+            AuthorUrl = source.AuthorUrl?.Trim() ?? string.Empty,
+            DetailUrl = source.DetailUrl?.Trim() ?? string.Empty,
+            SocialUrl = source.SocialUrl?.Trim() ?? string.Empty,
             HasPck = hasPck,
             HasDll = hasDll,
             Dependencies = source.Dependencies ?? [],
-            AffectsGameplay = source.AffectsGameplay
+            AffectsGameplay = source.AffectsGameplay,
+            ExtraProperties = source.ExtraProperties
         };
     }
 
@@ -545,11 +586,95 @@ public class ModService
         return new ModMetaInfo
         {
             Name = string.IsNullOrWhiteSpace(sameNameMeta.Name) ? fallbackName : sameNameMeta.Name.Trim(),
+            Tag = sameNameMeta.Tag?.Trim() ?? string.Empty,
             Author = sameNameMeta.Author?.Trim() ?? string.Empty,
             Version = sameNameMeta.Version?.Trim() ?? string.Empty,
             Description = sameNameMeta.Description?.Trim() ?? string.Empty,
-            Detail = sameNameMeta.Description?.Trim() ?? string.Empty
+            Detail = string.IsNullOrWhiteSpace(sameNameMeta.Detail)
+                ? (sameNameMeta.Description?.Trim() ?? string.Empty)
+                : sameNameMeta.Detail.Trim(),
+            Remark = sameNameMeta.Remark?.Trim() ?? string.Empty,
+            DownloadUrl = sameNameMeta.DownloadUrl?.Trim() ?? string.Empty,
+            AuthorUrl = sameNameMeta.AuthorUrl?.Trim() ?? string.Empty,
+            DetailUrl = sameNameMeta.DetailUrl?.Trim() ?? string.Empty,
+            SocialUrl = sameNameMeta.SocialUrl?.Trim() ?? string.Empty
         };
+    }
+
+    private static ModSameNameMeta ApplyCustomMetaToSameNameMeta(ModSameNameMeta sameNameMeta, ModMetaInfo customMeta)
+    {
+        sameNameMeta.Name = string.IsNullOrWhiteSpace(customMeta.Name) ? sameNameMeta.Name : customMeta.Name.Trim();
+        sameNameMeta.Author = customMeta.Author?.Trim() ?? string.Empty;
+        sameNameMeta.Version = customMeta.Version?.Trim() ?? string.Empty;
+        sameNameMeta.Description = customMeta.Description?.Trim() ?? string.Empty;
+        sameNameMeta.Tag = customMeta.Tag?.Trim() ?? string.Empty;
+        sameNameMeta.Detail = customMeta.Detail?.Trim() ?? string.Empty;
+        sameNameMeta.Remark = customMeta.Remark?.Trim() ?? string.Empty;
+        sameNameMeta.DownloadUrl = customMeta.DownloadUrl?.Trim() ?? string.Empty;
+        sameNameMeta.AuthorUrl = customMeta.AuthorUrl?.Trim() ?? string.Empty;
+        sameNameMeta.DetailUrl = customMeta.DetailUrl?.Trim() ?? string.Empty;
+        sameNameMeta.SocialUrl = customMeta.SocialUrl?.Trim() ?? string.Empty;
+        return sameNameMeta;
+    }
+
+    private static ModSameNameMeta MergeLegacyCustomMeta(ModSameNameMeta sameNameMeta, ModMetaInfo legacyMeta)
+    {
+        if (string.IsNullOrWhiteSpace(sameNameMeta.Name) && !string.IsNullOrWhiteSpace(legacyMeta.Name))
+        {
+            sameNameMeta.Name = legacyMeta.Name.Trim();
+        }
+
+        if (string.IsNullOrWhiteSpace(sameNameMeta.Author) && !string.IsNullOrWhiteSpace(legacyMeta.Author))
+        {
+            sameNameMeta.Author = legacyMeta.Author.Trim();
+        }
+
+        if (string.IsNullOrWhiteSpace(sameNameMeta.Version) && !string.IsNullOrWhiteSpace(legacyMeta.Version))
+        {
+            sameNameMeta.Version = legacyMeta.Version.Trim();
+        }
+
+        if (string.IsNullOrWhiteSpace(sameNameMeta.Description) && !string.IsNullOrWhiteSpace(legacyMeta.Description))
+        {
+            sameNameMeta.Description = legacyMeta.Description.Trim();
+        }
+
+        if (string.IsNullOrWhiteSpace(sameNameMeta.Tag) && !string.IsNullOrWhiteSpace(legacyMeta.Tag))
+        {
+            sameNameMeta.Tag = legacyMeta.Tag.Trim();
+        }
+
+        if (string.IsNullOrWhiteSpace(sameNameMeta.Detail) && !string.IsNullOrWhiteSpace(legacyMeta.Detail))
+        {
+            sameNameMeta.Detail = legacyMeta.Detail.Trim();
+        }
+
+        if (string.IsNullOrWhiteSpace(sameNameMeta.Remark) && !string.IsNullOrWhiteSpace(legacyMeta.Remark))
+        {
+            sameNameMeta.Remark = legacyMeta.Remark.Trim();
+        }
+
+        if (string.IsNullOrWhiteSpace(sameNameMeta.DownloadUrl) && !string.IsNullOrWhiteSpace(legacyMeta.DownloadUrl))
+        {
+            sameNameMeta.DownloadUrl = legacyMeta.DownloadUrl.Trim();
+        }
+
+        if (string.IsNullOrWhiteSpace(sameNameMeta.AuthorUrl) && !string.IsNullOrWhiteSpace(legacyMeta.AuthorUrl))
+        {
+            sameNameMeta.AuthorUrl = legacyMeta.AuthorUrl.Trim();
+        }
+
+        if (string.IsNullOrWhiteSpace(sameNameMeta.DetailUrl) && !string.IsNullOrWhiteSpace(legacyMeta.DetailUrl))
+        {
+            sameNameMeta.DetailUrl = legacyMeta.DetailUrl.Trim();
+        }
+
+        if (string.IsNullOrWhiteSpace(sameNameMeta.SocialUrl) && !string.IsNullOrWhiteSpace(legacyMeta.SocialUrl))
+        {
+            sameNameMeta.SocialUrl = legacyMeta.SocialUrl.Trim();
+        }
+
+        return sameNameMeta;
     }
 
     private static bool TryParseSameNameMeta(string jsonContent, string modBaseName, out ModSameNameMeta meta)
@@ -637,24 +762,6 @@ public class ModService
             .Where(x => !string.IsNullOrWhiteSpace(x))
             .Select(x => x!.Trim())
             .ToList();
-    }
-
-    private static ModMetaInfo MergeCustomMeta(ModMetaInfo existing, ModMetaInfo parsed)
-    {
-        return new ModMetaInfo
-        {
-            Name = string.IsNullOrWhiteSpace(parsed.Name) ? existing.Name : parsed.Name,
-            Tag = existing.Tag,
-            Version = string.IsNullOrWhiteSpace(parsed.Version) ? existing.Version : parsed.Version,
-            Detail = string.IsNullOrWhiteSpace(parsed.Detail) ? existing.Detail : parsed.Detail,
-            Remark = existing.Remark,
-            Author = string.IsNullOrWhiteSpace(parsed.Author) ? existing.Author : parsed.Author,
-            DownloadUrl = existing.DownloadUrl,
-            AuthorUrl = existing.AuthorUrl,
-            DetailUrl = existing.DetailUrl,
-            SocialUrl = existing.SocialUrl,
-            Description = string.IsNullOrWhiteSpace(parsed.Description) ? existing.Description : parsed.Description
-        };
     }
 
     public List<ModInfo> ScanModsFromSources(IEnumerable<ModSourceInfo> sources)
@@ -765,7 +872,7 @@ public class ModService
                 ModKey = modKey,
                 FolderName = folderName,
                 FolderPath = folder,
-                MetadataFilePath = Path.Combine(folder, MetaFileName),
+                MetadataFilePath = Path.Combine(folder, $"{ResolveModBaseName(folder, folderName)}.json"),
                 SourcePath = source.Path,
                 SourceName = source.Name,
                 DisplayName = string.IsNullOrWhiteSpace(meta.Name) ? folderName : meta.Name,
@@ -1046,16 +1153,18 @@ public class ModService
         }
     }
 
-    private static void TryWriteMetaFile(string metaFile, ModMetaInfo meta)
+    private static void TryDeleteFile(string filePath)
     {
         try
         {
-            var json = JsonSerializer.Serialize(meta, JsonIndentedOptions);
-            File.WriteAllText(metaFile, json, Encoding.UTF8);
+            if (File.Exists(filePath))
+            {
+                File.Delete(filePath);
+            }
         }
         catch
         {
-            // 忽略自动生成失败
+            // 忽略清理失败
         }
     }
 
@@ -1089,6 +1198,27 @@ public class ModService
         [JsonPropertyName("version")]
         public string Version { get; set; } = string.Empty;
 
+        [JsonPropertyName("tag")]
+        public string Tag { get; set; } = string.Empty;
+
+        [JsonPropertyName("detail")]
+        public string Detail { get; set; } = string.Empty;
+
+        [JsonPropertyName("remark")]
+        public string Remark { get; set; } = string.Empty;
+
+        [JsonPropertyName("download_url")]
+        public string DownloadUrl { get; set; } = string.Empty;
+
+        [JsonPropertyName("author_url")]
+        public string AuthorUrl { get; set; } = string.Empty;
+
+        [JsonPropertyName("detail_url")]
+        public string DetailUrl { get; set; } = string.Empty;
+
+        [JsonPropertyName("social_url")]
+        public string SocialUrl { get; set; } = string.Empty;
+
         [JsonPropertyName("has_pck")]
         public bool HasPck { get; set; }
 
@@ -1100,6 +1230,9 @@ public class ModService
 
         [JsonPropertyName("affects_gameplay")]
         public bool AffectsGameplay { get; set; } = true;
+
+        [JsonExtensionData]
+        public Dictionary<string, JsonElement>? ExtraProperties { get; set; }
     }
 
     private sealed class ModAssemblyLoadContext : AssemblyLoadContext
