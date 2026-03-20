@@ -419,6 +419,9 @@
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="74"/>
@@ -458,11 +461,28 @@
                                 <TextBlock Grid.Row="2" Grid.Column="0" Text="{Binding Loc[Field.Version]}" HorizontalAlignment="Right" Margin="0,0,8,6" VerticalAlignment="Center"/>
                                 <TextBox Grid.Row="2" Grid.Column="1" Margin="0,0,0,6" Style="{StaticResource MetaTextBoxAutoSaveStyle}" Text="{Binding ModVersionInput, UpdateSourceTrigger=LostFocus}"/>
 
-                                <TextBlock Grid.Row="3" Grid.Column="0" Text="{Binding Loc[Field.Updated]}" HorizontalAlignment="Right" Margin="0,0,8,6" VerticalAlignment="Center"/>
-                                <TextBox Grid.Row="3" Grid.Column="1" Margin="0,0,0,6" Text="{Binding SelectedModUpdatedDisplay}" IsReadOnly="True"/>
+                                <TextBlock Grid.Row="3" Grid.Column="0" Text="{Binding Loc[Field.ModId]}" HorizontalAlignment="Right" Margin="0,0,8,6" VerticalAlignment="Center"/>
+                                <TextBox Grid.Row="3" Grid.Column="1" Margin="0,0,0,6" Style="{StaticResource MetaTextBoxAutoSaveStyle}" Text="{Binding ModIdInput, UpdateSourceTrigger=LostFocus}"/>
 
-                                <TextBlock Grid.Row="4" Grid.Column="0" Text="{Binding Loc[Field.Description]}" HorizontalAlignment="Right" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                                <TextBox Grid.Row="4" Grid.Column="1" Style="{StaticResource MetaTextBoxAutoSaveStyle}" Text="{Binding ModDescriptionInput, UpdateSourceTrigger=LostFocus}"/>
+                                <TextBlock Grid.Row="4" Grid.Column="0" Text="{Binding Loc[Field.Dependencies]}" HorizontalAlignment="Right" Margin="0,0,8,6" VerticalAlignment="Top"/>
+                                <StackPanel Grid.Row="4" Grid.Column="1" Margin="0,0,0,6">
+                                    <TextBox Style="{StaticResource MetaTextBoxAutoSaveStyle}" Text="{Binding ModDependenciesInput, UpdateSourceTrigger=LostFocus}" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Height="48"/>
+                                    <TextBlock Text="{Binding Loc[Field.DependenciesHint]}" Margin="0,4,0,0" FontSize="10" Foreground="#60798E"/>
+                                </StackPanel>
+
+                                <TextBlock Grid.Row="5" Grid.Column="0" Text="{Binding Loc[Field.AffectsGameplay]}" HorizontalAlignment="Right" Margin="0,0,8,6" VerticalAlignment="Top"/>
+                                <StackPanel Grid.Row="5" Grid.Column="1" Margin="0,0,0,6">
+                                    <CheckBox Content="{Binding Loc[Field.AffectsGameplay.Checkbox]}"
+                                              IsChecked="{Binding ModAffectsGameplayInput, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                              Command="{Binding SaveModMetaOnBlurCommand}"/>
+                                    <TextBlock Text="{Binding Loc[Field.AffectsGameplayHint]}" Margin="0,4,0,0" FontSize="10" Foreground="#60798E" TextWrapping="Wrap"/>
+                                </StackPanel>
+
+                                <TextBlock Grid.Row="6" Grid.Column="0" Text="{Binding Loc[Field.Updated]}" HorizontalAlignment="Right" Margin="0,0,8,6" VerticalAlignment="Center"/>
+                                <TextBox Grid.Row="6" Grid.Column="1" Margin="0,0,0,6" Text="{Binding SelectedModUpdatedDisplay}" IsReadOnly="True"/>
+
+                                <TextBlock Grid.Row="7" Grid.Column="0" Text="{Binding Loc[Field.Description]}" HorizontalAlignment="Right" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                <TextBox Grid.Row="7" Grid.Column="1" Style="{StaticResource MetaTextBoxAutoSaveStyle}" Text="{Binding ModDescriptionInput, UpdateSourceTrigger=LostFocus}"/>
                             </Grid>
 
                             <WrapPanel Grid.Row="3" Margin="0,10,0,0">

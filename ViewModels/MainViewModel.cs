@@ -14,6 +14,7 @@ namespace StS2ModManager.ViewModels;
 public partial class MainViewModel : ObservableObject
 {
     private static readonly Regex TagSplitRegex = new("[,;|/\\n\\r，、]+", RegexOptions.Compiled);
+    private static readonly Regex DependencySplitRegex = new("[,;|\\n\\r，、]+", RegexOptions.Compiled);
 
     private readonly GamePathService _pathService;
     private readonly ModService _modService;
@@ -94,6 +95,9 @@ public partial class MainViewModel : ObservableObject
     private string _modNameInput = string.Empty;
 
     [ObservableProperty]
+    private string _modIdInput = string.Empty;
+
+    [ObservableProperty]
     private string _modTagInput = string.Empty;
 
     [ObservableProperty]
@@ -134,6 +138,12 @@ public partial class MainViewModel : ObservableObject
 
     [ObservableProperty]
     private string _modDescriptionInput = string.Empty;
+
+    [ObservableProperty]
+    private string _modDependenciesInput = string.Empty;
+
+    [ObservableProperty]
+    private bool _modAffectsGameplayInput = false;
 
     [ObservableProperty]
     private string _modSearchText = string.Empty;
@@ -306,6 +316,7 @@ public partial class MainViewModel : ObservableObject
         if (string.IsNullOrWhiteSpace(value))
         {
             ModNameInput = string.Empty;
+            ModIdInput = string.Empty;
             ModTagInput = string.Empty;
             ModTags.Clear();
             NewTagInput = string.Empty;
@@ -318,6 +329,8 @@ public partial class MainViewModel : ObservableObject
             ModDetailUrlInput = string.Empty;
             ModSocialUrlInput = string.Empty;
             ModDescriptionInput = string.Empty;
+            ModDependenciesInput = string.Empty;
+            ModAffectsGameplayInput = false;
             SelectedModUpdatedDisplay = string.Empty;
             return;
         }
@@ -750,6 +763,7 @@ public partial class MainViewModel : ObservableObject
 
         var success = _modService.SaveModMetaByPath(SelectedModFolderPath, SelectedModFolderName, new ModMetaInfo
         {
+            Id = ModIdInput,
             Name = ModNameInput,
             Tag = ModTagInput,
             Version = ModVersionInput,
@@ -760,7 +774,9 @@ public partial class MainViewModel : ObservableObject
             AuthorUrl = ModAuthorUrlInput,
             DetailUrl = ModDetailUrlInput,
             SocialUrl = ModSocialUrlInput,
-            Description = descriptionValue
+            Description = descriptionValue,
+            Dependencies = ParseDependencies(ModDependenciesInput),
+            AffectsGameplay = ModAffectsGameplayInput
         });
 
         if (!success)
@@ -818,6 +834,7 @@ public partial class MainViewModel : ObservableObject
 
     private void ApplyMetaToUiInputs(ModMetaInfo meta, string folderName)
     {
+        ModIdInput = string.IsNullOrWhiteSpace(meta.Id) ? folderName : meta.Id;
         ModNameInput = string.IsNullOrWhiteSpace(meta.Name) ? folderName : meta.Name;
         SetModTags(ParseTags(meta.Tag));
         NewTagInput = string.Empty;
@@ -832,6 +849,8 @@ public partial class MainViewModel : ObservableObject
         ModDetailUrlInput = meta.DetailUrl ?? string.Empty;
         ModSocialUrlInput = meta.SocialUrl ?? string.Empty;
         ModDescriptionInput = meta.Detail ?? string.Empty;
+        ModDependenciesInput = JoinDependencies(meta.Dependencies);
+        ModAffectsGameplayInput = meta.AffectsGameplay;
     }
 
     [RelayCommand]
@@ -1408,6 +1427,34 @@ public partial class MainViewModel : ObservableObject
     private static string JoinTags(IEnumerable<string> tags)
     {
         return string.Join(", ", tags
+            .Select(x => x.Trim())
+            .Where(x => x.Length > 0)
+            .Distinct(StringComparer.OrdinalIgnoreCase));
+    }
+
+    private static List<string> ParseDependencies(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return [];
+        }
+
+        return DependencySplitRegex
+            .Split(raw)
+            .Select(x => x.Trim())
+            .Where(x => x.Length > 0)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private static string JoinDependencies(IEnumerable<string>? dependencies)
+    {
+        if (dependencies == null)
+        {
+            return string.Empty;
+        }
+
+        return string.Join(", ", dependencies
             .Select(x => x.Trim())
             .Where(x => x.Length > 0)
             .Distinct(StringComparer.OrdinalIgnoreCase));

@@ -121,6 +121,7 @@ public class ModService
 
             var normalizedMeta = new ModMetaInfo
             {
+                Id = meta.Id.Trim(),
                 Name = meta.Name.Trim(),
                 Tag = meta.Tag.Trim(),
                 Version = meta.Version.Trim(),
@@ -131,7 +132,13 @@ public class ModService
                 AuthorUrl = meta.AuthorUrl.Trim(),
                 DetailUrl = meta.DetailUrl.Trim(),
                 SocialUrl = meta.SocialUrl.Trim(),
-                Description = normalizedDescription
+                Description = normalizedDescription,
+                Dependencies = (meta.Dependencies ?? [])
+                    .Where(x => !string.IsNullOrWhiteSpace(x))
+                    .Select(x => x.Trim())
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList(),
+                AffectsGameplay = meta.AffectsGameplay
             };
 
             var modBaseName = ResolveModBaseName(folderPath, folderName);
@@ -246,6 +253,7 @@ public class ModService
 
             var normalizedMeta = new ModMetaInfo
             {
+                Id = meta.Id.Trim(),
                 Name = meta.Name.Trim(),
                 Tag = meta.Tag.Trim(),
                 Version = meta.Version.Trim(),
@@ -256,7 +264,13 @@ public class ModService
                 AuthorUrl = meta.AuthorUrl.Trim(),
                 DetailUrl = meta.DetailUrl.Trim(),
                 SocialUrl = meta.SocialUrl.Trim(),
-                Description = normalizedDescription
+                Description = normalizedDescription,
+                Dependencies = (meta.Dependencies ?? [])
+                    .Where(x => !string.IsNullOrWhiteSpace(x))
+                    .Select(x => x.Trim())
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList(),
+                AffectsGameplay = meta.AffectsGameplay
             };
 
             if (!SaveModMetaByPath(mod.FolderPath, mod.FolderName, normalizedMeta))
@@ -463,7 +477,7 @@ public class ModService
             var author = ReadStringProperty(root, "author");
             var description = ReadStringProperty(root, "description");
             var version = ReadStringProperty(root, "version");
-            var affectsGameplay = ReadBoolProperty(root, "affects_gameplay") ?? true;
+            var affectsGameplay = ReadBoolProperty(root, "affects_gameplay") ?? false;
             var hasPck = ReadBoolProperty(root, "has_pck")
                          ?? Directory.GetFiles(folderPath, "*.pck", SearchOption.AllDirectories).Length > 0;
             var hasDll = ReadBoolProperty(root, "has_dll")
@@ -529,9 +543,12 @@ public class ModService
 
     private static ModSameNameMeta BuildSameNameMetaFromCustom(ModMetaInfo? customMeta, string modBaseName, string folderName, bool hasPck, bool hasDll)
     {
-        var id = string.IsNullOrWhiteSpace(modBaseName)
+        var fallbackId = string.IsNullOrWhiteSpace(modBaseName)
             ? (string.IsNullOrWhiteSpace(folderName) ? "UnknownMod" : folderName.Trim())
             : modBaseName.Trim();
+        var id = string.IsNullOrWhiteSpace(customMeta?.Id)
+            ? fallbackId
+            : customMeta!.Id.Trim();
         var name = customMeta == null || string.IsNullOrWhiteSpace(customMeta.Name) ? id : customMeta.Name.Trim();
         var author = customMeta == null ? string.Empty : customMeta.Author.Trim();
         var detail = customMeta?.Detail?.Trim() ?? string.Empty;
@@ -558,16 +575,21 @@ public class ModService
             SocialUrl = customMeta?.SocialUrl?.Trim() ?? string.Empty,
             HasPck = hasPck,
             HasDll = hasDll,
-            Dependencies = [],
-            AffectsGameplay = true
+            Dependencies = customMeta?.Dependencies?
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => x.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList() ?? [],
+            AffectsGameplay = customMeta?.AffectsGameplay ?? false
         };
     }
 
     private static ModSameNameMeta NormalizeSameNameMeta(ModSameNameMeta source, string modBaseName, string folderName, bool hasPck, bool hasDll)
     {
-        var id = string.IsNullOrWhiteSpace(modBaseName)
+        var fallbackId = string.IsNullOrWhiteSpace(modBaseName)
             ? (string.IsNullOrWhiteSpace(folderName) ? "UnknownMod" : folderName.Trim())
             : modBaseName.Trim();
+        var id = string.IsNullOrWhiteSpace(source.Id) ? fallbackId : source.Id.Trim();
         var detail = source.Detail?.Trim() ?? string.Empty;
         var description = source.Description?.Trim() ?? string.Empty;
         if (string.IsNullOrWhiteSpace(description) && !string.IsNullOrWhiteSpace(detail))
@@ -602,7 +624,7 @@ public class ModService
         if (sameNameMeta == null)
         {
             var defaultName = string.IsNullOrWhiteSpace(modBaseName) ? folderName : modBaseName;
-            return new ModMetaInfo { Name = defaultName };
+            return new ModMetaInfo { Name = defaultName, Id = defaultName };
         }
 
         var fallbackName = !string.IsNullOrWhiteSpace(sameNameMeta.Id)
@@ -622,12 +644,20 @@ public class ModService
             DownloadUrl = sameNameMeta.DownloadUrl?.Trim() ?? string.Empty,
             AuthorUrl = sameNameMeta.AuthorUrl?.Trim() ?? string.Empty,
             DetailUrl = sameNameMeta.DetailUrl?.Trim() ?? string.Empty,
-            SocialUrl = sameNameMeta.SocialUrl?.Trim() ?? string.Empty
+            SocialUrl = sameNameMeta.SocialUrl?.Trim() ?? string.Empty,
+            Dependencies = sameNameMeta.Dependencies ?? [],
+            AffectsGameplay = sameNameMeta.AffectsGameplay,
+            Id = sameNameMeta.Id?.Trim() ?? string.Empty
         };
     }
 
     private static ModSameNameMeta ApplyCustomMetaToSameNameMeta(ModSameNameMeta sameNameMeta, ModMetaInfo customMeta)
     {
+        if (!string.IsNullOrWhiteSpace(customMeta.Id))
+        {
+            sameNameMeta.Id = customMeta.Id.Trim();
+        }
+
         sameNameMeta.Name = string.IsNullOrWhiteSpace(customMeta.Name) ? sameNameMeta.Name : customMeta.Name.Trim();
         sameNameMeta.Author = customMeta.Author?.Trim() ?? string.Empty;
         sameNameMeta.Version = customMeta.Version?.Trim() ?? string.Empty;
@@ -643,6 +673,12 @@ public class ModService
         sameNameMeta.AuthorUrl = customMeta.AuthorUrl?.Trim() ?? string.Empty;
         sameNameMeta.DetailUrl = customMeta.DetailUrl?.Trim() ?? string.Empty;
         sameNameMeta.SocialUrl = customMeta.SocialUrl?.Trim() ?? string.Empty;
+        sameNameMeta.Dependencies = (customMeta.Dependencies ?? [])
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        sameNameMeta.AffectsGameplay = customMeta.AffectsGameplay;
         return sameNameMeta;
     }
 
@@ -701,6 +737,20 @@ public class ModService
         if (string.IsNullOrWhiteSpace(sameNameMeta.SocialUrl) && !string.IsNullOrWhiteSpace(legacyMeta.SocialUrl))
         {
             sameNameMeta.SocialUrl = legacyMeta.SocialUrl.Trim();
+        }
+
+        if ((sameNameMeta.Dependencies == null || sameNameMeta.Dependencies.Count == 0) && legacyMeta.Dependencies.Count > 0)
+        {
+            sameNameMeta.Dependencies = legacyMeta.Dependencies
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => x.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+
+        if (!sameNameMeta.AffectsGameplay && legacyMeta.AffectsGameplay)
+        {
+            sameNameMeta.AffectsGameplay = true;
         }
 
         return sameNameMeta;
@@ -887,7 +937,7 @@ public class ModService
 
             var hasPck = Directory.GetFiles(folder, "*.pck", SearchOption.AllDirectories).Length > 0;
             var hasDll = Directory.GetFiles(folder, "*.dll", SearchOption.AllDirectories).Length > 0;
-            if (!hasPck || !hasDll)
+            if (!hasPck && !hasDll)
             {
                 continue;
             }
@@ -1258,7 +1308,7 @@ public class ModService
         public List<string> Dependencies { get; set; } = [];
 
         [JsonPropertyName("affects_gameplay")]
-        public bool AffectsGameplay { get; set; } = true;
+        public bool AffectsGameplay { get; set; } = false;
 
         [JsonExtensionData]
         public Dictionary<string, JsonElement>? ExtraProperties { get; set; }
