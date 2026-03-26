@@ -237,7 +237,7 @@
                         <ColumnDefinition Width="1*"/>
                     </Grid.ColumnDefinitions>
 
-                    <Border x:Name="ToolModsPanel" Grid.Column="0" Style="{StaticResource CardBorderStyle}" Margin="0,0,6,0" MinHeight="560">
+                    <Border x:Name="ToolModsPanel" Grid.Column="0" Style="{StaticResource CardBorderStyle}" Margin="0,0,6,0" Height="560">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
@@ -285,7 +285,13 @@
                                 </Border>
                             </WrapPanel>
 
-                            <ListBox Grid.Row="2" Margin="0,8,0,0" ItemsSource="{Binding FilteredToolModsView}" SelectedItem="{Binding SelectedToolMod}">
+                            <ListBox Grid.Row="2"
+                                     Margin="0,8,0,0"
+                                     ItemsSource="{Binding FilteredToolModsView}"
+                                     SelectedItem="{Binding SelectedToolMod}"
+                                     ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                     ScrollViewer.CanContentScroll="True">
                                 <ListBox.ItemContainerStyle>
                                     <Style TargetType="ListBoxItem">
                                         <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
@@ -347,7 +353,7 @@
                         </Grid>
                     </Border>
 
-                    <Border Grid.Column="1" Style="{StaticResource CardBorderStyle}" Margin="6,0,0,0" MinHeight="560" Height="{Binding ActualHeight, ElementName=ToolModsPanel}">
+                    <Border Grid.Column="1" Style="{StaticResource CardBorderStyle}" Margin="6,0,0,0" Height="560">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>

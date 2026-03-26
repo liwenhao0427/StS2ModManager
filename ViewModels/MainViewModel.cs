@@ -1427,7 +1427,8 @@ public partial class MainViewModel : ObservableObject
                 {
                     SourcePath = path,
                     DisplayName = Path.GetFileName(path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)),
-                    IsSelected = true
+                    IsSelected = _modService.Settings.PreferredGithubSyncSourcePaths.Count == 0
+                        || _modService.Settings.PreferredGithubSyncSourcePaths.Contains(path, StringComparer.OrdinalIgnoreCase)
                 })
                 .ToList();
             if (candidateSourceOptions.Count == 0)
@@ -1461,6 +1462,10 @@ public partial class MainViewModel : ObservableObject
                 .Where(x => x.IsSelected)
                 .Select(x => x.SourcePath)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            _modService.Settings.PreferredGithubSyncSourcePaths = selectedSourcePaths
+                .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            _modService.SaveSettings();
 
             var duplicateEnabledCount = _modService.Settings.GithubSyncMods
                 .Where(x => x.Enabled && x.Available && selectedSourcePaths.Contains(x.SourcePath))

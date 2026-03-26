@@ -36,6 +36,11 @@ public class SettingsService
                 .ToList();
             settings.ModAliases ??= new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             settings.GithubSyncMods ??= new List<GithubSyncModItem>();
+            settings.PreferredGithubSyncSourcePaths ??= new List<string>();
+            settings.PreferredGithubSyncSourcePaths = settings.PreferredGithubSyncSourcePaths
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
             if (string.IsNullOrWhiteSpace(settings.LanguageMode))
             {
                 settings.LanguageMode = "system";
@@ -58,6 +63,11 @@ public class SettingsService
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
             settings.GithubSyncMods ??= new List<GithubSyncModItem>();
+            settings.PreferredGithubSyncSourcePaths ??= new List<string>();
+            settings.PreferredGithubSyncSourcePaths = settings.PreferredGithubSyncSourcePaths
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
 
             var json = JsonSerializer.Serialize(settings, JsonOptions);
             File.WriteAllText(_settingsFilePath, json, Encoding.UTF8);
