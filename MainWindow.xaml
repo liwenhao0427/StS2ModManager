@@ -226,6 +226,11 @@
                             <WrapPanel Grid.Row="0" VerticalAlignment="Center">
                                 <TextBlock Text="{Binding Loc[ModList.Title]}" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TitleBrush}"/>
                                 <Button Content="{Binding Loc[Common.Refresh]}" Command="{Binding RefreshToolModsCommand}" Margin="10,0,0,0" Padding="10,3"/>
+                                <Button Content="{Binding Loc[Mods.SyncGithub]}"
+                                        Command="{Binding SyncGithubModsCommand}"
+                                        Margin="8,0,0,0"
+                                        Padding="10,3"/>
+                                <TextBlock Text="{Binding GithubSyncProgressText}" Margin="8,2,0,0" Foreground="#1D5E8A" FontWeight="SemiBold"/>
                             </WrapPanel>
 
                             <WrapPanel Grid.Row="1" Margin="0,10,0,2" VerticalAlignment="Top">
@@ -422,6 +427,7 @@
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="74"/>
@@ -483,6 +489,17 @@
 
                                 <TextBlock Grid.Row="7" Grid.Column="0" Text="{Binding Loc[Field.Description]}" HorizontalAlignment="Right" Margin="0,0,8,0" VerticalAlignment="Center"/>
                                 <TextBox Grid.Row="7" Grid.Column="1" Style="{StaticResource MetaTextBoxAutoSaveStyle}" Text="{Binding ModDescriptionInput, UpdateSourceTrigger=LostFocus}"/>
+
+                                <TextBlock Grid.Row="8" Grid.Column="0" Text="{Binding Loc[Field.GithubRepo]}" HorizontalAlignment="Right" Margin="0,8,8,0" VerticalAlignment="Top"/>
+                                <StackPanel Grid.Row="8" Grid.Column="1" Margin="0,8,0,0">
+                                    <TextBox Text="{Binding ModGithubRepoUrlInput}" IsReadOnly="True"/>
+                                    <WrapPanel Margin="0,6,0,0">
+                                        <CheckBox Content="{Binding Loc[Field.GithubSyncEnabled]}"
+                                                  IsChecked="{Binding ModGithubSyncEnabledInput, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                        <TextBlock Text="{Binding Loc[Field.GithubAvailable]}" Margin="14,0,0,0" VerticalAlignment="Center"/>
+                                        <CheckBox IsChecked="{Binding ModGithubSyncAvailableInput}" IsEnabled="False" Margin="4,0,0,0" VerticalAlignment="Center"/>
+                                    </WrapPanel>
+                                </StackPanel>
                             </Grid>
 
                             <WrapPanel Grid.Row="3" Margin="0,10,0,0">

@@ -21,6 +21,8 @@ public partial class MainViewModel : ObservableObject
     private readonly SaveService _saveService;
     private readonly GameLaunchService _launchService;
     private readonly LocalizationService _localizationService;
+    private readonly GithubModSyncService _githubSyncService;
+    private bool _isUpdatingGithubSyncState;
 
     [ObservableProperty]
     private ObservableCollection<string> _detectedPaths = new();
@@ -169,6 +171,21 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private string _statusMessage = string.Empty;
 
+    [ObservableProperty]
+    private string _githubSyncProgressText = string.Empty;
+
+    [ObservableProperty]
+    private bool _isGithubSyncRunning;
+
+    [ObservableProperty]
+    private bool _modGithubSyncEnabledInput;
+
+    [ObservableProperty]
+    private bool _modGithubSyncAvailableInput = true;
+
+    [ObservableProperty]
+    private string _modGithubRepoUrlInput = string.Empty;
+
     public LocalizationService Loc => _localizationService;
 
     public ICollectionView FilteredToolModsView { get; }
@@ -178,6 +195,7 @@ public partial class MainViewModel : ObservableObject
         _pathService = new GamePathService();
         var settingsService = new SettingsService();
         _modService = new ModService(_pathService, settingsService);
+        _githubSyncService = new GithubModSyncService(_modService);
         _saveService = new SaveService();
         _launchService = new GameLaunchService();
         _localizationService = new LocalizationService(_modService.Settings.LanguageMode);
@@ -332,6 +350,11 @@ public partial class MainViewModel : ObservableObject
             ModDependenciesInput = string.Empty;
             ModAffectsGameplayInput = false;
             SelectedModUpdatedDisplay = string.Empty;
+            _isUpdatingGithubSyncState = true;
+            ModGithubSyncEnabledInput = false;
+            ModGithubSyncAvailableInput = true;
+            ModGithubRepoUrlInput = string.Empty;
+            _isUpdatingGithubSyncState = false;
             return;
         }
 
@@ -340,6 +363,7 @@ public partial class MainViewModel : ObservableObject
         SelectedModUpdatedDisplay = Directory.Exists(value)
             ? Directory.GetLastWriteTime(value).ToString("yyyy-MM-dd HH:mm")
             : string.Empty;
+        UpdateSelectedModGithubSyncState();
     }
 
     partial void OnSelectedSteamIdChanged(string? value)
@@ -385,6 +409,32 @@ public partial class MainViewModel : ObservableObject
     partial void OnSelectedAuthorFilterChanged(string value)
     {
         RefreshToolModsFilter();
+    }
+
+    partial void OnModGithubSyncEnabledInputChanged(bool value)
+    {
+        if (_isUpdatingGithubSyncState || SelectedModForDetail == null)
+        {
+            return;
+        }
+
+        var key = $"{SelectedModForDetail.SourcePath}|{SelectedModForDetail.FolderName}";
+        var record = _modService.Settings.GithubSyncMods
+            .FirstOrDefault(x => string.Equals(x.ModKey, key, StringComparison.OrdinalIgnoreCase));
+        if (record == null)
+        {
+            _githubSyncService.EnsureGithubSyncList(_modService.Settings, new[] { SelectedModForDetail });
+            record = _modService.Settings.GithubSyncMods
+                .FirstOrDefault(x => string.Equals(x.ModKey, key, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (record == null)
+        {
+            return;
+        }
+
+        record.Enabled = value;
+        _modService.SaveSettings();
     }
 
     [RelayCommand]
@@ -697,6 +747,10 @@ public partial class MainViewModel : ObservableObject
             ToolMods.Add(mod);
         }
 
+        _githubSyncService.EnsureGithubSyncList(_modService.Settings, ToolMods);
+        _modService.SaveSettings();
+        UpdateSelectedModGithubSyncState();
+
         UpdateTagFilters();
         RefreshToolModsFilter();
     }
@@ -754,8 +808,8 @@ public partial class MainViewModel : ObservableObject
         }
 
         ModTagInput = JoinTags(ModTags);
-        var detailValue = ModDescriptionInput?.Trim() ?? string.Empty;
-        var descriptionValue = ModDetailInput?.Trim() ?? string.Empty;
+        var detailValue = ModDetailInput?.Trim() ?? string.Empty;
+        var descriptionValue = ModDescriptionInput?.Trim() ?? string.Empty;
         if (string.IsNullOrWhiteSpace(descriptionValue) && !string.IsNullOrWhiteSpace(detailValue))
         {
             descriptionValue = detailValue;
@@ -827,6 +881,10 @@ public partial class MainViewModel : ObservableObject
             item.Description = meta.Description ?? string.Empty;
         }
 
+        _githubSyncService.EnsureGithubSyncList(_modService.Settings, relatedMods);
+        _modService.SaveSettings();
+        UpdateSelectedModGithubSyncState();
+
         UpdateTagFilters();
         RefreshToolModsFilter();
         RefreshGameMods();
@@ -839,16 +897,16 @@ public partial class MainViewModel : ObservableObject
         SetModTags(ParseTags(meta.Tag));
         NewTagInput = string.Empty;
         ModVersionInput = meta.Version ?? string.Empty;
-        ModDetailInput = string.IsNullOrWhiteSpace(meta.Description)
-            ? (meta.Detail ?? string.Empty)
-            : (meta.Description ?? string.Empty);
+        ModDetailInput = meta.Detail ?? string.Empty;
         ModAuthorInput = meta.Author ?? string.Empty;
         ModDownloadUrlInput = meta.DownloadUrl ?? string.Empty;
         ModRemarkInput = meta.Remark ?? string.Empty;
         ModAuthorUrlInput = meta.AuthorUrl ?? string.Empty;
         ModDetailUrlInput = meta.DetailUrl ?? string.Empty;
         ModSocialUrlInput = meta.SocialUrl ?? string.Empty;
-        ModDescriptionInput = meta.Detail ?? string.Empty;
+        ModDescriptionInput = string.IsNullOrWhiteSpace(meta.Description)
+            ? (meta.Detail ?? string.Empty)
+            : (meta.Description ?? string.Empty);
         ModDependenciesInput = JoinDependencies(meta.Dependencies);
         ModAffectsGameplayInput = meta.AffectsGameplay;
     }
@@ -1307,6 +1365,56 @@ public partial class MainViewModel : ObservableObject
         MessageBox.Show(L("Msg.SteamLaunchFailed"), L("Dialog.Title.Error"), MessageBoxButton.OK, MessageBoxImage.Error);
     }
 
+    [RelayCommand]
+    private async Task SyncGithubMods()
+    {
+        if (IsGithubSyncRunning)
+        {
+            return;
+        }
+
+        IsGithubSyncRunning = true;
+        GithubSyncProgressText = "0/0";
+        try
+        {
+            RefreshModSources();
+            RefreshToolMods();
+            RefreshGameMods();
+
+            var allMods = ToolMods.ToList();
+            _githubSyncService.EnsureGithubSyncList(_modService.Settings, allMods);
+            _modService.SaveSettings();
+
+            var progress = new Progress<GithubSyncProgress>(p =>
+            {
+                GithubSyncProgressText = $"{p.Current}/{p.Total}";
+                StatusMessage = p.Message;
+            });
+
+            var summary = await _githubSyncService.SyncAsync(_modService.Settings, allMods, progress);
+            _modService.SaveSettings();
+
+            RefreshModSources();
+            RefreshToolMods();
+            RefreshGameMods();
+            UpdateSelectedModGithubSyncState();
+
+            GithubSyncProgressText = $"{summary.Total}/{summary.Total}";
+            var msg = F("Msg.GithubSyncSummary", summary.Updated, summary.Invalid, summary.Latest, summary.DuplicateRepoHints);
+            MessageBox.Show(msg, L("Dialog.Title.Success"), MessageBoxButton.OK, MessageBoxImage.Information);
+            StatusMessage = L("Status.GithubSyncDone");
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(F("Msg.OperationFailed", ex.Message), L("Dialog.Title.Error"), MessageBoxButton.OK, MessageBoxImage.Error);
+            StatusMessage = L("Status.GithubSyncFailed");
+        }
+        finally
+        {
+            IsGithubSyncRunning = false;
+        }
+    }
+
     private bool FilterToolMod(object obj)
     {
         if (obj is not ModInfo mod)
@@ -1492,6 +1600,48 @@ public partial class MainViewModel : ObservableObject
 
         ModTagInput = JoinTags(ModTags);
         return true;
+    }
+
+    private void UpdateSelectedModGithubSyncState()
+    {
+        _isUpdatingGithubSyncState = true;
+        try
+        {
+            if (SelectedModForDetail == null)
+            {
+                ModGithubSyncEnabledInput = false;
+                ModGithubSyncAvailableInput = true;
+                ModGithubRepoUrlInput = string.Empty;
+                return;
+            }
+
+            var key = $"{SelectedModForDetail.SourcePath}|{SelectedModForDetail.FolderName}";
+            var record = _modService.Settings.GithubSyncMods
+                .FirstOrDefault(x => string.Equals(x.ModKey, key, StringComparison.OrdinalIgnoreCase));
+            if (record == null)
+            {
+                _githubSyncService.EnsureGithubSyncList(_modService.Settings, new[] { SelectedModForDetail });
+                _modService.SaveSettings();
+                record = _modService.Settings.GithubSyncMods
+                    .FirstOrDefault(x => string.Equals(x.ModKey, key, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (record == null)
+            {
+                ModGithubSyncEnabledInput = false;
+                ModGithubSyncAvailableInput = true;
+                ModGithubRepoUrlInput = string.Empty;
+                return;
+            }
+
+            ModGithubSyncEnabledInput = record.Enabled;
+            ModGithubSyncAvailableInput = record.Available;
+            ModGithubRepoUrlInput = record.RepoUrl;
+        }
+        finally
+        {
+            _isUpdatingGithubSyncState = false;
+        }
     }
 
     private string L(string key)

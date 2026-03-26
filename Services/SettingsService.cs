@@ -1,4 +1,5 @@
 using System.IO;
+using System.Text;
 using System.Text.Json;
 using StS2ModManager.Models;
 
@@ -27,13 +28,14 @@ public class SettingsService
                 return new AppSettings();
             }
 
-            var json = File.ReadAllText(_settingsFilePath);
+            var json = File.ReadAllText(_settingsFilePath, Encoding.UTF8);
             var settings = JsonSerializer.Deserialize<AppSettings>(json) ?? new AppSettings();
             settings.CustomModSourceDirs = settings.CustomModSourceDirs
                 .Where(Directory.Exists)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
             settings.ModAliases ??= new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            settings.GithubSyncMods ??= new List<GithubSyncModItem>();
             if (string.IsNullOrWhiteSpace(settings.LanguageMode))
             {
                 settings.LanguageMode = "system";
@@ -55,9 +57,10 @@ public class SettingsService
                 .Where(Directory.Exists)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
+            settings.GithubSyncMods ??= new List<GithubSyncModItem>();
 
             var json = JsonSerializer.Serialize(settings, JsonOptions);
-            File.WriteAllText(_settingsFilePath, json);
+            File.WriteAllText(_settingsFilePath, json, Encoding.UTF8);
         }
         catch
         {
