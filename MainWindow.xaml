@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:helpers="clr-namespace:StS2ModManager.Helpers"
         mc:Ignorable="d"
         Title="{Binding Loc[App.Title]}"
         Width="1080"
@@ -16,6 +17,7 @@
         WindowStartupLocation="CenterScreen">
 
     <Window.Resources>
+        <helpers:MiddleEllipsisConverter x:Key="MiddleEllipsisConverter"/>
         <CollectionViewSource x:Key="GroupedToolMods" Source="{Binding ToolMods}">
             <CollectionViewSource.GroupDescriptions>
                 <PropertyGroupDescription PropertyName="SourceName" />
@@ -177,12 +179,31 @@
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
-                <WrapPanel Grid.Row="0" VerticalAlignment="Center">
-                    <TextBlock Text="{Binding Loc[Path.Label]}" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                    <ComboBox Width="640" ItemsSource="{Binding DetectedPaths}" SelectedItem="{Binding SelectedPath}"/>
-                    <Button Content="{Binding Loc[Common.Refresh]}" Command="{Binding RefreshPathsCommand}" Margin="8,0,0,0"/>
-                    <Button Content="{Binding Loc[Common.Browse]}" Command="{Binding BrowseGamePathCommand}" Margin="4,0,0,0"/>
-                </WrapPanel>
+                <Grid Grid.Row="0" VerticalAlignment="Center">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <WrapPanel Grid.Column="0" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding Loc[Path.Label]}" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <ComboBox Width="520" ItemsSource="{Binding DetectedPaths}" SelectedItem="{Binding SelectedPath}">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Converter={StaticResource MiddleEllipsisConverter}, ConverterParameter=48}"
+                                               ToolTip="{Binding}"/>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                        <Button Content="{Binding Loc[Common.Refresh]}" Command="{Binding RefreshPathsCommand}" Margin="8,0,0,0"/>
+                        <Button Content="{Binding Loc[Common.Browse]}" Command="{Binding BrowseGamePathCommand}" Margin="4,0,0,0"/>
+                    </WrapPanel>
+                    <WrapPanel Grid.Column="1" VerticalAlignment="Center" Margin="12,0,0,0">
+                        <Button Content="{Binding Loc[Launch.Steam]}" Command="{Binding LaunchGameViaSteamCommand}" Style="{StaticResource AccentButtonStyle}" Padding="12,6"/>
+                        <Button Content="{Binding Loc[Launch.SteamNoMods]}" Command="{Binding LaunchGameViaSteamNoModsCommand}" Style="{StaticResource AccentButtonStyle}" Padding="12,6" Margin="6,0,0,0"/>
+                        <Button Content="{Binding Loc[Launch.Direct]}" Command="{Binding LaunchGameCommand}" Style="{StaticResource PrimaryButtonStyle}" Padding="12,6" Margin="10,0,0,0"/>
+                        <Button Content="{Binding Loc[Launch.DirectNoMods]}" Command="{Binding LaunchGameNoModsCommand}" Style="{StaticResource PrimaryButtonStyle}" Padding="12,6" Margin="6,0,0,0"/>
+                    </WrapPanel>
+                </Grid>
 
                 <WrapPanel Grid.Row="1" Margin="0,8,0,0" VerticalAlignment="Center">
                     <TextBlock Text="{Binding GamePathStatus}" Foreground="#15803D" FontWeight="Bold" VerticalAlignment="Center"/>
@@ -196,25 +217,13 @@
 
         <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
             <StackPanel>
-                <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,10">
-                    <StackPanel>
-                        <TextBlock Text="{Binding Loc[Launch.Title]}" FontSize="18" FontWeight="Bold" Foreground="{StaticResource TitleBrush}"/>
-                        <WrapPanel Margin="0,8,0,0">
-                            <Button Content="{Binding Loc[Launch.Steam]}" Command="{Binding LaunchGameViaSteamCommand}" Style="{StaticResource AccentButtonStyle}" Padding="16,8"/>
-                            <Button Content="{Binding Loc[Launch.SteamNoMods]}" Command="{Binding LaunchGameViaSteamNoModsCommand}" Style="{StaticResource AccentButtonStyle}" Padding="16,8" Margin="8,0,0,0"/>
-                            <Button Content="{Binding Loc[Launch.Direct]}" Command="{Binding LaunchGameCommand}" Style="{StaticResource PrimaryButtonStyle}" Padding="16,8" Margin="14,0,0,0"/>
-                            <Button Content="{Binding Loc[Launch.DirectNoMods]}" Command="{Binding LaunchGameNoModsCommand}" Style="{StaticResource PrimaryButtonStyle}" Padding="16,8" Margin="8,0,0,0"/>
-                        </WrapPanel>
-                    </StackPanel>
-                </Border>
-
                 <Grid Margin="0,0,0,10">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="1.6*"/>
                         <ColumnDefinition Width="1*"/>
                     </Grid.ColumnDefinitions>
 
-                    <Border Grid.Column="0" Style="{StaticResource CardBorderStyle}" Margin="0,0,6,0" Height="560">
+                    <Border x:Name="ToolModsPanel" Grid.Column="0" Style="{StaticResource CardBorderStyle}" Margin="0,0,6,0" MinHeight="560">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
@@ -316,7 +325,7 @@
                         </Grid>
                     </Border>
 
-                    <Border Grid.Column="1" Style="{StaticResource CardBorderStyle}" Margin="6,0,0,0">
+                    <Border Grid.Column="1" Style="{StaticResource CardBorderStyle}" Margin="6,0,0,0" MinHeight="560" Height="{Binding ActualHeight, ElementName=ToolModsPanel}">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
@@ -392,8 +401,15 @@
                                      <TextBlock Text="{Binding Loc[Field.TagHint]}" Margin="0,4,0,0" FontSize="10" Foreground="#60798E"/>
                                  </StackPanel>
 
-                                 <TextBlock Grid.Row="2" Grid.Column="0" Text="{Binding Loc[Field.Detail]}" HorizontalAlignment="Right" Margin="0,0,8,6" VerticalAlignment="Center"/>
-                                 <TextBox Grid.Row="2" Grid.Column="1" Margin="0,0,0,6" Style="{StaticResource MetaTextBoxAutoSaveStyle}" Text="{Binding ModDetailInput, UpdateSourceTrigger=LostFocus}"/>
+                                 <TextBlock Grid.Row="2" Grid.Column="0" Text="{Binding Loc[Field.Description]}" HorizontalAlignment="Right" Margin="0,0,8,6" VerticalAlignment="Top"/>
+                                 <TextBox Grid.Row="2" Grid.Column="1"
+                                          Margin="0,0,0,6"
+                                          Style="{StaticResource MetaTextBoxAutoSaveStyle}"
+                                          Text="{Binding ModDescriptionInput, UpdateSourceTrigger=LostFocus}"
+                                          AcceptsReturn="True"
+                                          TextWrapping="Wrap"
+                                          VerticalScrollBarVisibility="Auto"
+                                          Height="72"/>
 
                                  <TextBlock Grid.Row="3" Grid.Column="0" Text="{Binding Loc[Field.Author]}" HorizontalAlignment="Right" Margin="0,0,8,6" VerticalAlignment="Center"/>
                                  <TextBox Grid.Row="3" Grid.Column="1" Margin="0,0,0,6" Style="{StaticResource MetaTextBoxAutoSaveStyle}" Text="{Binding ModAuthorInput, UpdateSourceTrigger=LostFocus}"/>
@@ -487,8 +503,8 @@
                                 <TextBlock Grid.Row="6" Grid.Column="0" Text="{Binding Loc[Field.Updated]}" HorizontalAlignment="Right" Margin="0,0,8,6" VerticalAlignment="Center"/>
                                 <TextBox Grid.Row="6" Grid.Column="1" Margin="0,0,0,6" Text="{Binding SelectedModUpdatedDisplay}" IsReadOnly="True"/>
 
-                                <TextBlock Grid.Row="7" Grid.Column="0" Text="{Binding Loc[Field.Description]}" HorizontalAlignment="Right" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                                <TextBox Grid.Row="7" Grid.Column="1" Style="{StaticResource MetaTextBoxAutoSaveStyle}" Text="{Binding ModDescriptionInput, UpdateSourceTrigger=LostFocus}"/>
+                                <TextBlock Grid.Row="7" Grid.Column="0" Text="{Binding Loc[Field.Detail]}" HorizontalAlignment="Right" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                <TextBox Grid.Row="7" Grid.Column="1" Style="{StaticResource MetaTextBoxAutoSaveStyle}" Text="{Binding ModDetailInput, UpdateSourceTrigger=LostFocus}"/>
 
                                 <TextBlock Grid.Row="8" Grid.Column="0" Text="{Binding Loc[Field.GithubRepo]}" HorizontalAlignment="Right" Margin="0,8,8,0" VerticalAlignment="Top"/>
                                 <StackPanel Grid.Row="8" Grid.Column="1" Margin="0,8,0,0">
