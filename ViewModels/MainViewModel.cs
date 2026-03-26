@@ -1375,13 +1375,17 @@ public partial class MainViewModel : ObservableObject
 
         IsGithubSyncRunning = true;
         GithubSyncProgressText = "0/0";
+        SyncProgressWindow? progressWindow = null;
         try
         {
-            RefreshModSources();
-            RefreshToolMods();
-            RefreshGameMods();
-
             var allMods = ToolMods.ToList();
+            if (allMods.Count == 0)
+            {
+                RefreshModSources();
+                RefreshToolMods();
+                RefreshGameMods();
+                allMods = ToolMods.ToList();
+            }
             _githubSyncService.EnsureGithubSyncList(_modService.Settings, allMods);
             _modService.SaveSettings();
 
@@ -1405,13 +1409,31 @@ public partial class MainViewModel : ObservableObject
                 }
             }
 
+            StatusMessage = L("Status.GithubSyncPreparing");
+            if (Application.Current?.Dispatcher != null)
+            {
+                await Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    progressWindow = new SyncProgressWindow
+                    {
+                        Owner = Application.Current.MainWindow,
+                        Title = L("Dialog.GithubSync.Title")
+                    };
+                    progressWindow.SetTitle(L("Dialog.GithubSync.Header"));
+                    progressWindow.UpdateProgress(L("Status.GithubSyncPreparing"), 0, 0);
+                    progressWindow.Show();
+                });
+            }
+
             var progress = new Progress<GithubSyncProgress>(p =>
             {
                 GithubSyncProgressText = $"{p.Current}/{p.Total}";
                 StatusMessage = p.Message;
+                progressWindow?.UpdateProgress(p.Message, p.Current, p.Total);
             });
 
-            var summary = await _githubSyncService.SyncAsync(_modService.Settings, allMods, progress);
+            StatusMessage = L("Status.GithubSyncRunning");
+            var summary = await Task.Run(() => _githubSyncService.SyncAsync(_modService.Settings, allMods, progress));
             _modService.SaveSettings();
 
             RefreshModSources();
@@ -1431,6 +1453,10 @@ public partial class MainViewModel : ObservableObject
         }
         finally
         {
+            if (progressWindow != null)
+            {
+                progressWindow.Close();
+            }
             IsGithubSyncRunning = false;
         }
     }
