@@ -1,4 +1,5 @@
 using System.IO;
+using System.Text;
 using System.Text.RegularExpressions;
 
 namespace StS2ModManager.Services;
@@ -78,12 +79,23 @@ public class GamePathService
     public List<string> DetectGamePaths()
     {
         var paths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        TryAddValidPaths(paths, _possiblePaths);
-        TryAddValidPaths(paths, DetectFromCommonLibraryPatterns());
-        TryAddValidPaths(paths, DetectFromSteamLibraryFolders());
-        TryAddValidPaths(paths, DetectFromToolDirectory());
+        TryAddValidPaths(paths, _possiblePaths, IsValidGamePathForDetection);
+        TryAddValidPaths(paths, DetectFromCommonLibraryPatterns(), IsValidGamePathForDetection);
+        TryAddValidPaths(paths, DetectFromSteamLibraryFolders(), IsValidGamePathForDetection);
+        TryAddValidPaths(paths, DetectFromToolDirectory(), IsValidGamePathForDetection);
 
         return paths.OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToList();
+    }
+
+    public bool IsValidGamePathForDetection(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path) || !Directory.Exists(path))
+        {
+            return false;
+        }
+
+        var exePath = Path.Combine(path, "SlayTheSpire2.exe");
+        return File.Exists(exePath);
     }
 
     public bool IsValidGamePath(string path)
@@ -183,7 +195,7 @@ public class GamePathService
 
             try
             {
-                var content = File.ReadAllText(libraryVdfPath);
+                var content = File.ReadAllText(libraryVdfPath, Encoding.UTF8);
                 var matches = Regex.Matches(content, "\"path\"\\s+\"([^\"]+)\"");
                 foreach (Match match in matches)
                 {
@@ -203,13 +215,14 @@ public class GamePathService
         return result;
     }
 
-    private void TryAddValidPaths(HashSet<string> paths, IEnumerable<string> candidates)
+    private void TryAddValidPaths(HashSet<string> paths, IEnumerable<string> candidates, Func<string, bool>? validator = null)
     {
+        validator ??= IsValidGamePath;
         foreach (var path in candidates)
         {
             try
             {
-                if (!string.IsNullOrWhiteSpace(path) && IsValidGamePath(path))
+                if (!string.IsNullOrWhiteSpace(path) && validator(path))
                 {
                     paths.Add(path);
                 }
