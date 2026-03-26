@@ -1385,6 +1385,26 @@ public partial class MainViewModel : ObservableObject
             _githubSyncService.EnsureGithubSyncList(_modService.Settings, allMods);
             _modService.SaveSettings();
 
+            var duplicateEnabledCount = _modService.Settings.GithubSyncMods
+                .Where(x => x.Enabled && x.Available)
+                .Select(x => NormalizeGithubRepo(x.RepoUrl))
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .GroupBy(x => x, StringComparer.OrdinalIgnoreCase)
+                .Count(g => g.Count() > 1);
+            if (duplicateEnabledCount > 0)
+            {
+                var confirm = MessageBox.Show(
+                    F("Msg.GithubDuplicateConfirm", duplicateEnabledCount),
+                    L("Dialog.Title.Confirm"),
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Warning);
+                if (confirm != MessageBoxResult.Yes)
+                {
+                    StatusMessage = L("Status.GithubSyncCancelled");
+                    return;
+                }
+            }
+
             var progress = new Progress<GithubSyncProgress>(p =>
             {
                 GithubSyncProgressText = $"{p.Current}/{p.Total}";
@@ -1642,6 +1662,27 @@ public partial class MainViewModel : ObservableObject
         {
             _isUpdatingGithubSyncState = false;
         }
+    }
+
+    private static string NormalizeGithubRepo(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url) || !Uri.TryCreate(url.Trim(), UriKind.Absolute, out var uri))
+        {
+            return string.Empty;
+        }
+
+        if (!string.Equals(uri.Host, "github.com", StringComparison.OrdinalIgnoreCase))
+        {
+            return string.Empty;
+        }
+
+        var segments = uri.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        if (segments.Length < 2)
+        {
+            return string.Empty;
+        }
+
+        return $"https://github.com/{segments[0]}/{segments[1]}";
     }
 
     private string L(string key)
