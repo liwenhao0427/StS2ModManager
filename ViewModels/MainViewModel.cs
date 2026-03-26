@@ -1420,7 +1420,7 @@ public partial class MainViewModel : ObservableObject
             UpdateSelectedModGithubSyncState();
 
             GithubSyncProgressText = $"{summary.Total}/{summary.Total}";
-            var msg = F("Msg.GithubSyncSummary", summary.Updated, summary.Invalid, summary.Latest, summary.DuplicateRepoHints);
+            var msg = F("Msg.GithubSyncSummary", summary.Updated, summary.Invalid, summary.Latest, summary.DuplicateRepoHints, summary.LogFilePath);
             MessageBox.Show(msg, L("Dialog.Title.Success"), MessageBoxButton.OK, MessageBoxImage.Information);
             StatusMessage = L("Status.GithubSyncDone");
         }

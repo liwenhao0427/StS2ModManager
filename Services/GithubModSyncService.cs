@@ -16,6 +16,7 @@ public class GithubSyncSummary
     public int Invalid { get; set; }
     public int Latest { get; set; }
     public int DuplicateRepoHints { get; set; }
+    public string LogFilePath { get; set; } = string.Empty;
 }
 
 public class GithubSyncProgress
@@ -28,7 +29,9 @@ public class GithubSyncProgress
 public class GithubModSyncService
 {
     private static readonly HttpClient HttpClient = new();
+    private static readonly object LogFileLock = new();
     private readonly ModService _modService;
+    private string _logFilePath = string.Empty;
 
     public GithubModSyncService(ModService modService)
     {
@@ -86,6 +89,8 @@ public class GithubModSyncService
         CancellationToken cancellationToken = default)
     {
         settings.GithubSyncMods ??= new List<GithubSyncModItem>();
+        InitializeRunLog();
+        LogInfo($"同步开始，可见Mod总数: {mods.Count}, 启用记录总数: {settings.GithubSyncMods.Count}");
 
         var modMap = mods
             .GroupBy(x => $"{x.SourcePath}|{x.FolderName}", StringComparer.OrdinalIgnoreCase)
@@ -94,6 +99,7 @@ public class GithubModSyncService
         var enabledRecords = settings.GithubSyncMods
             .Where(x => x.Enabled && x.Available && !string.IsNullOrWhiteSpace(x.RepoUrl))
             .ToList();
+        LogInfo($"参与同步的启用记录数: {enabledRecords.Count}");
 
         var summary = new GithubSyncSummary();
         var targetRecords = new List<GithubSyncModItem>();
@@ -103,6 +109,7 @@ public class GithubModSyncService
             if (records.Count > 1)
             {
                 summary.DuplicateRepoHints++;
+                LogInfo($"检测到重复仓库映射: {group.Key}, 条目数: {records.Count}，将只处理其中一个。");
             }
 
             var chosen = records.FirstOrDefault(x => modMap.ContainsKey($"{x.SourcePath}|{x.FolderName}"))
@@ -131,9 +138,11 @@ public class GithubModSyncService
                 record.LastError = "未找到本地Mod目录";
                 record.LastSyncAt = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
                 summary.Invalid++;
+                LogInfo($"[{record.FolderName}] 失败：未找到本地目录，Key={modLookupKey}");
                 continue;
             }
 
+            LogInfo($"[{record.FolderName}] 开始同步，仓库={record.RepoUrl}, 当前版本={record.CurrentVersion}");
             var result = await SyncSingleRecord(record, mod, cancellationToken);
             record.LastSyncAt = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
             record.LastError = result.ErrorMessage;
@@ -146,6 +155,7 @@ public class GithubModSyncService
             if (result.IsLatest)
             {
                 summary.Latest++;
+                LogInfo($"[{record.FolderName}] 已是最新版本");
             }
             else if (result.Success)
             {
@@ -160,13 +170,17 @@ public class GithubModSyncService
                     record.FolderName = result.NewFolderName;
                     record.ModKey = $"{record.SourcePath}|{result.NewFolderName}";
                 }
+                LogInfo($"[{record.FolderName}] 更新成功 -> 版本 {result.Version}");
             }
             else
             {
                 summary.Invalid++;
+                LogInfo($"[{record.FolderName}] 更新失败：{result.ErrorMessage}");
             }
         }
 
+        LogInfo($"同步结束：更新={summary.Updated}, 无效={summary.Invalid}, 最新={summary.Latest}, 重复提示={summary.DuplicateRepoHints}");
+        summary.LogFilePath = _logFilePath;
         return summary;
     }
 
@@ -185,6 +199,7 @@ public class GithubModSyncService
             {
                 return SingleSyncResult.Fail(release.ErrorMessage);
             }
+            LogInfo($"[{record.FolderName}] 获取Release成功，tag={release.Tag}, 资产数={release.AssetUrls.Count}");
 
             if (string.Equals(record.CurrentVersion, release.Tag, StringComparison.OrdinalIgnoreCase))
             {
@@ -208,6 +223,7 @@ public class GithubModSyncService
             {
                 return SingleSyncResult.Fail("Release中没有可识别资产");
             }
+            LogInfo($"[{record.FolderName}] 可识别资产数量: {downloadUrls.Count}");
 
             foreach (var url in downloadUrls)
             {
@@ -219,11 +235,13 @@ public class GithubModSyncService
 
                 var localPath = Path.Combine(downloadsDir, fileName);
                 await DownloadFileAsync(url, localPath, cancellationToken);
+                LogInfo($"[{record.FolderName}] 已下载资产: {fileName}");
                 if (fileName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
                 {
                     var zipExtract = Path.Combine(extractDir, Path.GetFileNameWithoutExtension(fileName));
                     Directory.CreateDirectory(zipExtract);
                     ZipFile.ExtractToDirectory(localPath, zipExtract, true);
+                    LogInfo($"[{record.FolderName}] 已解压: {fileName}");
                 }
             }
 
@@ -237,6 +255,7 @@ public class GithubModSyncService
             {
                 return SingleSyncResult.Fail("下载内容中不存在dll/pck/json");
             }
+            LogInfo($"[{record.FolderName}] 扁平化后文件数: {collectedFiles.Length}");
 
             var versionToken = SanitizeFileNameToken(release.Tag);
             var newFolderName = $"{mod.FolderName}_{versionToken}";
@@ -252,7 +271,8 @@ public class GithubModSyncService
                     Directory.Delete(backupPath, true);
                 }
 
-                Directory.Move(mod.FolderPath, backupPath);
+                MoveOrCopyDirectory(mod.FolderPath, backupPath);
+                LogInfo($"[{record.FolderName}] 已备份旧目录 -> {backupPath}");
             }
 
             if (Directory.Exists(targetFolder))
@@ -260,7 +280,8 @@ public class GithubModSyncService
                 Directory.Delete(targetFolder, true);
             }
 
-            Directory.Move(flatDir, targetFolder);
+            MoveOrCopyDirectory(flatDir, targetFolder);
+            LogInfo($"[{record.FolderName}] 已部署新目录 -> {targetFolder}");
 
             var mergedMeta = _modService.LoadModMetaByPath(targetFolder, newFolderName);
             MergeMissingFields(mergedMeta, modMeta);
@@ -274,6 +295,7 @@ public class GithubModSyncService
             }
 
             _modService.SaveModMetaByPath(targetFolder, newFolderName, mergedMeta);
+            LogInfo($"[{record.FolderName}] 已回写元数据JSON");
 
             return SingleSyncResult.Ok(
                 release.Tag,
@@ -285,8 +307,46 @@ public class GithubModSyncService
         }
         catch (Exception ex)
         {
+            LogError($"[{record.FolderName}] 异常: {ex}");
             return SingleSyncResult.Fail(ex.Message);
         }
+    }
+
+    private static void CopyDirectoryRecursive(string source, string destination)
+    {
+        Directory.CreateDirectory(destination);
+        foreach (var file in Directory.GetFiles(source, "*", SearchOption.AllDirectories))
+        {
+            var relative = Path.GetRelativePath(source, file);
+            var target = Path.Combine(destination, relative);
+            var targetDir = Path.GetDirectoryName(target);
+            if (!string.IsNullOrWhiteSpace(targetDir))
+            {
+                Directory.CreateDirectory(targetDir);
+            }
+
+            File.Copy(file, target, true);
+        }
+    }
+
+    private static void MoveOrCopyDirectory(string source, string destination)
+    {
+        try
+        {
+            Directory.Move(source, destination);
+            return;
+        }
+        catch (IOException)
+        {
+            // 跨卷移动失败时回退复制+删除
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // 目标盘或权限限制时回退复制+删除
+        }
+
+        CopyDirectoryRecursive(source, destination);
+        Directory.Delete(source, true);
     }
 
     private static void MergeMissingFields(ModMetaInfo target, ModMetaInfo source)
@@ -510,6 +570,38 @@ public class GithubModSyncService
         }
 
         return output;
+    }
+
+    private void InitializeRunLog()
+    {
+        var logDir = Path.Combine(GamePathService.ConfigDir, "Logs");
+        Directory.CreateDirectory(logDir);
+        _logFilePath = Path.Combine(logDir, $"github_sync_{DateTime.Now:yyyyMMdd_HHmmss}.log");
+        LogInfo("日志初始化完成");
+    }
+
+    private void LogInfo(string message)
+    {
+        WriteLog("INFO", message);
+    }
+
+    private void LogError(string message)
+    {
+        WriteLog("ERROR", message);
+    }
+
+    private void WriteLog(string level, string message)
+    {
+        if (string.IsNullOrWhiteSpace(_logFilePath))
+        {
+            return;
+        }
+
+        var line = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} [{level}] {message}";
+        lock (LogFileLock)
+        {
+            File.AppendAllText(_logFilePath, line + Environment.NewLine, Encoding.UTF8);
+        }
     }
 
     private sealed class TempWorkspace : IDisposable
