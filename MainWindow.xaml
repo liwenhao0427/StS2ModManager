@@ -202,24 +202,36 @@
                         <Button Content="{Binding Loc[Launch.SteamNoMods]}" Command="{Binding LaunchGameViaSteamNoModsCommand}" Style="{StaticResource AccentButtonStyle}" Padding="12,6" Margin="6,0,0,0"/>
                         <Button Content="{Binding Loc[Launch.Direct]}" Command="{Binding LaunchGameCommand}" Style="{StaticResource PrimaryButtonStyle}" Padding="12,6" Margin="10,0,0,0"/>
                         <Button Content="{Binding Loc[Launch.DirectNoMods]}" Command="{Binding LaunchGameNoModsCommand}" Style="{StaticResource PrimaryButtonStyle}" Padding="12,6" Margin="6,0,0,0"/>
-                        <Button Content="{Binding Loc[Save.QuickOpenSaves]}" Command="{Binding OpenSavesDirectoryCommand}" Margin="10,0,0,0" Padding="10,5"/>
-                        <Button Content="{Binding Loc[Save.QuickCopy]}" Command="{Binding CopySaveCommand}" Margin="6,0,0,0" Padding="10,5"/>
                     </WrapPanel>
                 </Grid>
 
-                <WrapPanel Grid.Row="1" Margin="0,8,0,0" VerticalAlignment="Center">
-                    <TextBlock Text="{Binding GamePathStatus}" Foreground="#15803D" FontWeight="Bold" VerticalAlignment="Center"/>
-                    <Button Content="{Binding Loc[Path.OpenGameDir]}" Command="{Binding OpenGameDirectoryCommand}" Margin="14,0,0,0" Padding="9,4"/>
-                    <Button Content="{Binding Loc[Path.OpenGameMods]}" Command="{Binding OpenGameModsDirectoryCommand}" Padding="9,4"/>
-                    <Button Content="{Binding Loc[Path.OpenPendingMods]}" Command="{Binding OpenPendingModsDirectoryCommand}" Padding="9,4"/>
-                    <Button Content="{Binding Loc[Path.OpenToolMods]}" Command="{Binding OpenToolModsDirectoryCommand}" Padding="9,4"/>
-                </WrapPanel>
+                <Grid Grid.Row="1" Margin="0,8,0,0" VerticalAlignment="Center">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <WrapPanel Grid.Column="0" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding GamePathStatus}" Foreground="#15803D" FontWeight="Bold" VerticalAlignment="Center"/>
+                        <Button Content="{Binding Loc[Path.OpenGameDir]}" Command="{Binding OpenGameDirectoryCommand}" Margin="14,0,0,0" Padding="9,4"/>
+                        <Button Content="{Binding Loc[Path.OpenGameMods]}" Command="{Binding OpenGameModsDirectoryCommand}" Padding="9,4"/>
+                        <Button Content="{Binding Loc[Path.OpenPendingMods]}" Command="{Binding OpenPendingModsDirectoryCommand}" Padding="9,4"/>
+                        <Button Content="{Binding Loc[Path.OpenToolMods]}" Command="{Binding OpenToolModsDirectoryCommand}" Padding="9,4"/>
+                    </WrapPanel>
+                    <WrapPanel Grid.Column="1" VerticalAlignment="Center" Margin="12,0,0,0">
+                        <Button Content="{Binding Loc[Save.QuickOpenSaves]}" Command="{Binding OpenSavesDirectoryCommand}" Padding="10,5"/>
+                        <Button Content="{Binding Loc[Save.QuickCopyNormalToMod]}" Command="{Binding QuickCopyNormalToModCommand}" Margin="6,0,0,0" Padding="10,5" Style="{StaticResource PrimaryButtonStyle}"/>
+                        <Button Content="{Binding Loc[Save.QuickCopyModToNormal]}" Command="{Binding QuickCopyModToNormalCommand}" Margin="6,0,0,0" Padding="10,5" Style="{StaticResource AccentButtonStyle}"/>
+                    </WrapPanel>
+                </Grid>
             </Grid>
         </Border>
 
-        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-            <StackPanel>
-                <Grid Margin="0,0,0,10">
+        <Grid Grid.Row="2">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <Grid Grid.Row="0" Margin="0,0,0,10">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="1.6*"/>
                         <ColumnDefinition Width="1*"/>
@@ -534,9 +546,9 @@
                             </WrapPanel>
                         </Grid>
                     </Border>
-                </Grid>
+            </Grid>
 
-                <Border Style="{StaticResource CardBorderStyle}">
+            <Border Grid.Row="1" Style="{StaticResource CardBorderStyle}">
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
@@ -578,9 +590,8 @@
                             <TextBlock Text="{Binding Loc[Save.ManualHint]}" Margin="10,0,0,0" VerticalAlignment="Center" Foreground="#60798E"/>
                         </WrapPanel>
                     </Grid>
-                </Border>
-            </StackPanel>
-        </ScrollViewer>
+            </Border>
+        </Grid>
 
         <Border Grid.Row="3" Style="{StaticResource CardBorderStyle}" Padding="12,8" Margin="0,10,0,0">
             <TextBlock Text="{Binding StatusMessage}" Foreground="#4B6073"/>

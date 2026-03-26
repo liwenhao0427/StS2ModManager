@@ -3,6 +3,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Net.Http;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using StS2ModManager.Models;
@@ -251,8 +252,9 @@ public class GithubModSyncService
                 }
             }
 
-            FlattenSupportedFiles(downloadsDir, flatDir);
-            FlattenSupportedFiles(extractDir, flatDir);
+            var copiedHashes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            FlattenSupportedFiles(downloadsDir, flatDir, copiedHashes);
+            FlattenSupportedFiles(extractDir, flatDir, copiedHashes);
             DeleteAllSubDirectories(flatDir);
 
             var collectedFiles = Directory.GetFiles(flatDir, "*", SearchOption.TopDirectoryOnly);
@@ -264,7 +266,7 @@ public class GithubModSyncService
             LogInfo($"[{record.FolderName}] 扁平化后文件数: {collectedFiles.Length}");
 
             var versionToken = SanitizeFileNameToken(release.Tag);
-            var newFolderName = $"{mod.FolderName}_{versionToken}";
+            var newFolderName = BuildVersionedFolderName(mod.FolderName, versionToken);
             var targetFolder = Path.Combine(mod.SourcePath, newFolderName);
             var backupRoot = Path.Combine(GamePathService.BackupDir, "Mods", "Updates", DateTime.Now.ToString("yyyyMMdd_HHmmss"));
             Directory.CreateDirectory(backupRoot);
@@ -384,7 +386,7 @@ public class GithubModSyncService
         return string.IsNullOrWhiteSpace(target) ? fallback : target;
     }
 
-    private static void FlattenSupportedFiles(string sourceRoot, string flatDir)
+    private static void FlattenSupportedFiles(string sourceRoot, string flatDir, HashSet<string> copiedHashes)
     {
         if (!Directory.Exists(sourceRoot))
         {
@@ -394,6 +396,12 @@ public class GithubModSyncService
         foreach (var sourceFile in Directory.GetFiles(sourceRoot, "*", SearchOption.AllDirectories))
         {
             if (!IsSupportedAssetFile(sourceFile))
+            {
+                continue;
+            }
+
+            var fileHash = ComputeFileHash(sourceFile);
+            if (!string.IsNullOrWhiteSpace(fileHash) && copiedHashes.Contains(fileHash))
             {
                 continue;
             }
@@ -410,6 +418,24 @@ public class GithubModSyncService
             }
 
             File.Copy(sourceFile, targetPath, true);
+            if (!string.IsNullOrWhiteSpace(fileHash))
+            {
+                copiedHashes.Add(fileHash);
+            }
+        }
+    }
+
+    private static string ComputeFileHash(string filePath)
+    {
+        try
+        {
+            using var stream = File.OpenRead(filePath);
+            var hash = SHA256.HashData(stream);
+            return Convert.ToHexString(hash);
+        }
+        catch
+        {
+            return string.Empty;
         }
     }
 
@@ -451,6 +477,34 @@ public class GithubModSyncService
         var invalid = Path.GetInvalidFileNameChars();
         var buffer = input.Trim().Select(ch => invalid.Contains(ch) ? '_' : ch).ToArray();
         return new string(buffer);
+    }
+
+    private static string BuildVersionedFolderName(string folderName, string versionToken)
+    {
+        var baseName = folderName?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(baseName))
+        {
+            baseName = "Mod";
+        }
+
+        var suffix = "_" + versionToken;
+        if (baseName.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+        {
+            return baseName;
+        }
+
+        var idx = baseName.LastIndexOf('_');
+        if (idx > 0)
+        {
+            var tail = baseName[(idx + 1)..];
+            if (tail.StartsWith("v", StringComparison.OrdinalIgnoreCase)
+                || tail.All(ch => char.IsDigit(ch) || ch == '.'))
+            {
+                baseName = baseName[..idx];
+            }
+        }
+
+        return $"{baseName}_{versionToken}";
     }
 
     private static string? ExtractGithubRepoUrl(string? url)

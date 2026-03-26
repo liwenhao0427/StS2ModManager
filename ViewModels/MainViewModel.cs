@@ -1208,6 +1208,30 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private async Task QuickCopyNormalToMod()
+    {
+        var target = SaveDirections.FirstOrDefault(x => string.Equals(x.Key, "normal_to_mod", StringComparison.OrdinalIgnoreCase));
+        if (target != null)
+        {
+            SelectedSaveDirection = target;
+        }
+
+        await CopySave();
+    }
+
+    [RelayCommand]
+    private async Task QuickCopyModToNormal()
+    {
+        var target = SaveDirections.FirstOrDefault(x => string.Equals(x.Key, "mod_to_normal", StringComparison.OrdinalIgnoreCase));
+        if (target != null)
+        {
+            SelectedSaveDirection = target;
+        }
+
+        await CopySave();
+    }
+
+    [RelayCommand]
     private async Task RestoreSaveBackup()
     {
         if (SelectedSaveBackup == null)
