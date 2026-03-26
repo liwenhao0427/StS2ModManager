@@ -102,6 +102,20 @@
             </Style.Triggers>
         </Style>
 
+        <Style x:Key="WarningButtonStyle" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Background" Value="#C65A0A"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderBrush" Value="#9F4908"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#AD4F09"/>
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter Property="Background" Value="#914307"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
         <Style TargetType="TextBox">
             <Setter Property="Background" Value="#FFFFFF"/>
             <Setter Property="BorderBrush" Value="#C7D6E7"/>
@@ -253,7 +267,8 @@
                                 <Button Content="{Binding Loc[Mods.SyncGithub]}"
                                         Command="{Binding SyncGithubModsCommand}"
                                         Margin="8,0,0,0"
-                                        Padding="10,3"/>
+                                        Padding="10,3"
+                                        Style="{StaticResource WarningButtonStyle}"/>
                                 <Button Content="{Binding Loc[Mods.RestoreAllGithub]}"
                                         Command="{Binding RestoreAllGithubUpdatesCommand}"
                                         Margin="8,0,0,0"
@@ -392,7 +407,21 @@
                                  </Grid.ColumnDefinitions>
 
                                  <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding Loc[Field.Name]}" HorizontalAlignment="Right" Margin="0,0,8,6" VerticalAlignment="Center"/>
-                                 <TextBox Grid.Row="0" Grid.Column="1" Margin="0,0,0,6" Style="{StaticResource MetaTextBoxAutoSaveStyle}" Text="{Binding ModNameInput, UpdateSourceTrigger=LostFocus}"/>
+                                 <Grid Grid.Row="0" Grid.Column="1" Margin="0,0,0,6">
+                                     <Grid.ColumnDefinitions>
+                                         <ColumnDefinition Width="*"/>
+                                         <ColumnDefinition Width="Auto"/>
+                                     </Grid.ColumnDefinitions>
+                                     <TextBox Grid.Column="0"
+                                              Style="{StaticResource MetaTextBoxAutoSaveStyle}"
+                                              Text="{Binding ModNameInput, UpdateSourceTrigger=LostFocus}"/>
+                                     <Button Grid.Column="1"
+                                             Margin="8,0,0,0"
+                                             Padding="10,4"
+                                             Content="{Binding Loc[Mods.SyncGithubSingle]}"
+                                             Command="{Binding SyncSelectedGithubModCommand}"
+                                             Style="{StaticResource WarningButtonStyle}"/>
+                                 </Grid>
 
                                  <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding Loc[Field.Tag]}" HorizontalAlignment="Right" Margin="0,0,8,6" VerticalAlignment="Top"/>
                                  <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,0,0,6">

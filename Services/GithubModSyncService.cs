@@ -87,6 +87,7 @@ public class GithubModSyncService
         AppSettings settings,
         IReadOnlyCollection<ModInfo> mods,
         ISet<string>? selectedSourcePaths = null,
+        ISet<string>? selectedModKeys = null,
         IProgress<GithubSyncProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
@@ -105,6 +106,7 @@ public class GithubModSyncService
         var enabledRecords = settings.GithubSyncMods
             .Where(x => x.Enabled && x.Available && !string.IsNullOrWhiteSpace(x.RepoUrl))
             .Where(x => selectedSourcePaths == null || selectedSourcePaths.Contains(x.SourcePath))
+            .Where(x => selectedModKeys == null || selectedModKeys.Contains(x.ModKey))
             .ToList();
         LogInfo($"参与同步的启用记录数: {enabledRecords.Count}");
 

@@ -1512,7 +1512,12 @@ public partial class MainViewModel : ObservableObject
             });
 
             StatusMessage = L("Status.GithubSyncRunning");
-            var summary = await Task.Run(() => _githubSyncService.SyncAsync(_modService.Settings, allMods, selectedSourcePaths, progress));
+            var summary = await Task.Run(() => _githubSyncService.SyncAsync(
+                _modService.Settings,
+                allMods,
+                selectedSourcePaths: selectedSourcePaths,
+                selectedModKeys: null,
+                progress: progress));
             _modService.SaveSettings();
 
             RefreshModSources();
@@ -1548,6 +1553,122 @@ public partial class MainViewModel : ObservableObject
             {
                 progressWindow.Close();
             }
+            BringMainWindowToFront();
+            IsGithubSyncRunning = false;
+        }
+    }
+
+    [RelayCommand]
+    private async Task SyncSelectedGithubMod()
+    {
+        if (IsGithubSyncRunning)
+        {
+            return;
+        }
+
+        if (SelectedModForDetail == null)
+        {
+            MessageBox.Show(L("Msg.SelectModFirst"), L("Dialog.Title.Tip"), MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        var selectedMod = SelectedModForDetail;
+        var modKey = $"{selectedMod.SourcePath}|{selectedMod.FolderName}";
+
+        var allMods = ToolMods.ToList();
+        if (allMods.Count == 0)
+        {
+            RefreshModSources();
+            RefreshToolMods();
+            RefreshGameMods();
+            allMods = ToolMods.ToList();
+        }
+
+        _githubSyncService.EnsureGithubSyncList(_modService.Settings, allMods);
+        _modService.SaveSettings();
+
+        var record = _modService.Settings.GithubSyncMods
+            .FirstOrDefault(x => string.Equals(x.ModKey, modKey, StringComparison.OrdinalIgnoreCase));
+        if (record == null || string.IsNullOrWhiteSpace(record.RepoUrl))
+        {
+            MessageBox.Show(L("Msg.GithubSingleNoRepo"), L("Dialog.Title.Tip"), MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        IsGithubSyncRunning = true;
+        GithubSyncProgressText = "0/1";
+        SyncProgressWindow? progressWindow = null;
+        try
+        {
+            StatusMessage = L("Status.GithubSyncPreparing");
+            if (Application.Current?.Dispatcher != null)
+            {
+                await Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    progressWindow = new SyncProgressWindow
+                    {
+                        Owner = Application.Current.MainWindow,
+                        Title = L("Dialog.GithubSync.SingleTitle")
+                    };
+                    progressWindow.SetTitle(L("Dialog.GithubSync.SingleHeader"));
+                    progressWindow.UpdateProgress(L("Status.GithubSyncPreparing"), 0, 1);
+                    progressWindow.Show();
+                });
+            }
+
+            var selectedModKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { modKey };
+            var progress = new Progress<GithubSyncProgress>(p =>
+            {
+                GithubSyncProgressText = $"{p.Current}/{p.Total}";
+                StatusMessage = p.Message;
+                progressWindow?.UpdateProgress(p.Message, p.Current, p.Total);
+            });
+
+            StatusMessage = L("Status.GithubSyncRunning");
+            var summary = await Task.Run(() => _githubSyncService.SyncAsync(
+                _modService.Settings,
+                allMods,
+                selectedSourcePaths: null,
+                selectedModKeys: selectedModKeys,
+                progress: progress));
+            _modService.SaveSettings();
+
+            RefreshModSources();
+            RefreshToolMods();
+            RefreshGameMods();
+            UpdateSelectedModGithubSyncState();
+
+            GithubSyncProgressText = $"{summary.Total}/{summary.Total}";
+            if (progressWindow != null)
+            {
+                progressWindow.Close();
+                progressWindow = null;
+            }
+
+            BringMainWindowToFront();
+            var msg = F("Msg.GithubSingleSyncSummary", summary.Updated, summary.Invalid, summary.Latest, summary.LogFilePath);
+            MessageBox.Show(Application.Current?.MainWindow, msg, L("Dialog.Title.Success"), MessageBoxButton.OK, MessageBoxImage.Information);
+            StatusMessage = L("Status.GithubSyncDone");
+        }
+        catch (Exception ex)
+        {
+            if (progressWindow != null)
+            {
+                progressWindow.Close();
+                progressWindow = null;
+            }
+
+            BringMainWindowToFront();
+            MessageBox.Show(Application.Current?.MainWindow, F("Msg.OperationFailed", ex.Message), L("Dialog.Title.Error"), MessageBoxButton.OK, MessageBoxImage.Error);
+            StatusMessage = L("Status.GithubSyncFailed");
+        }
+        finally
+        {
+            if (progressWindow != null)
+            {
+                progressWindow.Close();
+            }
+
             BringMainWindowToFront();
             IsGithubSyncRunning = false;
         }
