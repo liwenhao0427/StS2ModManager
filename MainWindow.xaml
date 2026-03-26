@@ -202,6 +202,8 @@
                         <Button Content="{Binding Loc[Launch.SteamNoMods]}" Command="{Binding LaunchGameViaSteamNoModsCommand}" Style="{StaticResource AccentButtonStyle}" Padding="12,6" Margin="6,0,0,0"/>
                         <Button Content="{Binding Loc[Launch.Direct]}" Command="{Binding LaunchGameCommand}" Style="{StaticResource PrimaryButtonStyle}" Padding="12,6" Margin="10,0,0,0"/>
                         <Button Content="{Binding Loc[Launch.DirectNoMods]}" Command="{Binding LaunchGameNoModsCommand}" Style="{StaticResource PrimaryButtonStyle}" Padding="12,6" Margin="6,0,0,0"/>
+                        <Button Content="{Binding Loc[Save.QuickOpenSaves]}" Command="{Binding OpenSavesDirectoryCommand}" Margin="10,0,0,0" Padding="10,5"/>
+                        <Button Content="{Binding Loc[Save.QuickCopy]}" Command="{Binding CopySaveCommand}" Margin="6,0,0,0" Padding="10,5"/>
                     </WrapPanel>
                 </Grid>
 
@@ -237,6 +239,14 @@
                                 <Button Content="{Binding Loc[Common.Refresh]}" Command="{Binding RefreshToolModsCommand}" Margin="10,0,0,0" Padding="10,3"/>
                                 <Button Content="{Binding Loc[Mods.SyncGithub]}"
                                         Command="{Binding SyncGithubModsCommand}"
+                                        Margin="8,0,0,0"
+                                        Padding="10,3"/>
+                                <Button Content="{Binding Loc[Mods.RestoreAllGithub]}"
+                                        Command="{Binding RestoreAllGithubUpdatesCommand}"
+                                        Margin="8,0,0,0"
+                                        Padding="10,3"/>
+                                <Button Content="{Binding Loc[Mods.OpenGithubLogs]}"
+                                        Command="{Binding OpenGithubSyncLogsCommand}"
                                         Margin="8,0,0,0"
                                         Padding="10,3"/>
                                 <TextBlock Text="{Binding GithubSyncProgressText}" Margin="8,2,0,0" Foreground="#1D5E8A" FontWeight="SemiBold"/>

@@ -1447,6 +1447,7 @@ public partial class MainViewModel : ObservableObject
             if (duplicateEnabledCount > 0)
             {
                 var confirm = MessageBox.Show(
+                    Application.Current?.MainWindow ?? progressWindow,
                     F("Msg.GithubDuplicateConfirm", duplicateEnabledCount),
                     L("Dialog.Title.Confirm"),
                     MessageBoxButton.YesNo,
@@ -1491,13 +1492,25 @@ public partial class MainViewModel : ObservableObject
             UpdateSelectedModGithubSyncState();
 
             GithubSyncProgressText = $"{summary.Total}/{summary.Total}";
+            if (progressWindow != null)
+            {
+                progressWindow.Close();
+                progressWindow = null;
+            }
+            BringMainWindowToFront();
             var msg = F("Msg.GithubSyncSummary", summary.Updated, summary.Invalid, summary.Latest, summary.DuplicateRepoHints, summary.LogFilePath);
-            MessageBox.Show(msg, L("Dialog.Title.Success"), MessageBoxButton.OK, MessageBoxImage.Information);
+            MessageBox.Show(Application.Current?.MainWindow, msg, L("Dialog.Title.Success"), MessageBoxButton.OK, MessageBoxImage.Information);
             StatusMessage = L("Status.GithubSyncDone");
         }
         catch (Exception ex)
         {
-            MessageBox.Show(F("Msg.OperationFailed", ex.Message), L("Dialog.Title.Error"), MessageBoxButton.OK, MessageBoxImage.Error);
+            if (progressWindow != null)
+            {
+                progressWindow.Close();
+                progressWindow = null;
+            }
+            BringMainWindowToFront();
+            MessageBox.Show(Application.Current?.MainWindow, F("Msg.OperationFailed", ex.Message), L("Dialog.Title.Error"), MessageBoxButton.OK, MessageBoxImage.Error);
             StatusMessage = L("Status.GithubSyncFailed");
         }
         finally
@@ -1506,8 +1519,55 @@ public partial class MainViewModel : ObservableObject
             {
                 progressWindow.Close();
             }
+            BringMainWindowToFront();
             IsGithubSyncRunning = false;
         }
+    }
+
+    [RelayCommand]
+    private void RestoreAllGithubUpdates()
+    {
+        var records = _modService.Settings.GithubSyncMods;
+        if (records == null || records.Count == 0)
+        {
+            StatusMessage = L("Status.GithubRestoreSkipped");
+            return;
+        }
+
+        foreach (var item in records)
+        {
+            item.Enabled = true;
+            item.Available = true;
+            item.LastError = string.Empty;
+        }
+
+        _modService.SaveSettings();
+        UpdateSelectedModGithubSyncState();
+        StatusMessage = F("Status.GithubRestoreDone", records.Count);
+        MessageBox.Show(
+            Application.Current?.MainWindow,
+            F("Msg.GithubRestoreDone", records.Count),
+            L("Dialog.Title.Success"),
+            MessageBoxButton.OK,
+            MessageBoxImage.Information);
+        BringMainWindowToFront();
+    }
+
+    [RelayCommand]
+    private void OpenGithubSyncLogs()
+    {
+        var logDir = Path.Combine(GamePathService.ConfigDir, "Logs");
+        Directory.CreateDirectory(logDir);
+        var latest = Directory.GetFiles(logDir, "github_sync_*.log", SearchOption.TopDirectoryOnly)
+            .OrderByDescending(File.GetLastWriteTime)
+            .FirstOrDefault();
+        if (!string.IsNullOrWhiteSpace(latest) && File.Exists(latest))
+        {
+            System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{latest}\"");
+            return;
+        }
+
+        System.Diagnostics.Process.Start("explorer.exe", logDir);
     }
 
     private bool FilterToolMod(object obj)
@@ -1737,6 +1797,25 @@ public partial class MainViewModel : ObservableObject
         {
             _isUpdatingGithubSyncState = false;
         }
+    }
+
+    private static void BringMainWindowToFront()
+    {
+        var mainWindow = Application.Current?.MainWindow;
+        if (mainWindow == null)
+        {
+            return;
+        }
+
+        if (mainWindow.WindowState == WindowState.Minimized)
+        {
+            mainWindow.WindowState = WindowState.Normal;
+        }
+
+        mainWindow.Activate();
+        mainWindow.Topmost = true;
+        mainWindow.Topmost = false;
+        mainWindow.Focus();
     }
 
     private static string NormalizeGithubRepo(string? url)
