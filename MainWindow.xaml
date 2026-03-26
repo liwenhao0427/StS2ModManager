@@ -186,7 +186,7 @@
                     </Grid.ColumnDefinitions>
                     <WrapPanel Grid.Column="0" VerticalAlignment="Center">
                         <TextBlock Text="{Binding Loc[Path.Label]}" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                        <ComboBox Width="520" ItemsSource="{Binding DetectedPaths}" SelectedItem="{Binding SelectedPath}">
+                        <ComboBox Width="440" ItemsSource="{Binding DetectedPaths}" SelectedItem="{Binding SelectedPath}">
                             <ComboBox.ItemTemplate>
                                 <DataTemplate>
                                     <TextBlock Text="{Binding Converter={StaticResource MiddleEllipsisConverter}, ConverterParameter=48}"
@@ -194,10 +194,10 @@
                                 </DataTemplate>
                             </ComboBox.ItemTemplate>
                         </ComboBox>
-                        <Button Content="{Binding Loc[Common.Refresh]}" Command="{Binding RefreshPathsCommand}" Margin="8,0,0,0"/>
-                        <Button Content="{Binding Loc[Common.Browse]}" Command="{Binding BrowseGamePathCommand}" Margin="4,0,0,0"/>
                     </WrapPanel>
                     <WrapPanel Grid.Column="1" VerticalAlignment="Center" Margin="12,0,0,0">
+                        <Button Content="{Binding Loc[Common.Refresh]}" Command="{Binding RefreshPathsCommand}" Padding="10,5"/>
+                        <Button Content="{Binding Loc[Common.Browse]}" Command="{Binding BrowseGamePathCommand}" Margin="6,0,0,0" Padding="10,5"/>
                         <Button Content="{Binding Loc[Launch.Steam]}" Command="{Binding LaunchGameViaSteamCommand}" Style="{StaticResource AccentButtonStyle}" Padding="12,6"/>
                         <Button Content="{Binding Loc[Launch.SteamNoMods]}" Command="{Binding LaunchGameViaSteamNoModsCommand}" Style="{StaticResource AccentButtonStyle}" Padding="12,6" Margin="6,0,0,0"/>
                         <Button Content="{Binding Loc[Launch.Direct]}" Command="{Binding LaunchGameCommand}" Style="{StaticResource PrimaryButtonStyle}" Padding="12,6" Margin="10,0,0,0"/>

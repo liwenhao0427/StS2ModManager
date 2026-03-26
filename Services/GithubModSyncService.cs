@@ -85,12 +85,17 @@ public class GithubModSyncService
     public async Task<GithubSyncSummary> SyncAsync(
         AppSettings settings,
         IReadOnlyCollection<ModInfo> mods,
+        ISet<string>? selectedSourcePaths = null,
         IProgress<GithubSyncProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
         settings.GithubSyncMods ??= new List<GithubSyncModItem>();
         InitializeRunLog();
         LogInfo($"同步开始，可见Mod总数: {mods.Count}, 启用记录总数: {settings.GithubSyncMods.Count}");
+        if (selectedSourcePaths != null)
+        {
+            LogInfo($"目录筛选已启用，勾选目录数: {selectedSourcePaths.Count}");
+        }
 
         var modMap = mods
             .GroupBy(x => $"{x.SourcePath}|{x.FolderName}", StringComparer.OrdinalIgnoreCase)
@@ -98,6 +103,7 @@ public class GithubModSyncService
 
         var enabledRecords = settings.GithubSyncMods
             .Where(x => x.Enabled && x.Available && !string.IsNullOrWhiteSpace(x.RepoUrl))
+            .Where(x => selectedSourcePaths == null || selectedSourcePaths.Contains(x.SourcePath))
             .ToList();
         LogInfo($"参与同步的启用记录数: {enabledRecords.Count}");
 

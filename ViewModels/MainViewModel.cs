@@ -741,7 +741,11 @@ public partial class MainViewModel : ObservableObject
         var gameMods = string.IsNullOrWhiteSpace(SelectedPath)
             ? new List<ModInfo>()
             : _modService.ScanGameMods(SelectedPath);
-        var mods = _modService.BuildUnifiedMods(sourceMods, gameMods);
+        var mods = _modService.BuildUnifiedMods(sourceMods, gameMods)
+            .OrderByDescending(x => x.IsEnabled)
+            .ThenBy(x => x.DisplayName, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(x => x.SourceName, StringComparer.OrdinalIgnoreCase)
+            .ToList();
         foreach (var mod in mods)
         {
             ToolMods.Add(mod);
@@ -1389,8 +1393,53 @@ public partial class MainViewModel : ObservableObject
             _githubSyncService.EnsureGithubSyncList(_modService.Settings, allMods);
             _modService.SaveSettings();
 
+            var candidateSourceOptions = _modService.Settings.GithubSyncMods
+                .Where(x => x.Enabled && x.Available && !string.IsNullOrWhiteSpace(x.RepoUrl))
+                .Select(x => x.SourcePath)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
+                .Select(path => new SyncSourceOption
+                {
+                    SourcePath = path,
+                    DisplayName = Path.GetFileName(path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)),
+                    IsSelected = true
+                })
+                .ToList();
+            if (candidateSourceOptions.Count == 0)
+            {
+                MessageBox.Show(L("Msg.GithubNoCandidate"), L("Dialog.Title.Tip"), MessageBoxButton.OK, MessageBoxImage.Information);
+                StatusMessage = L("Status.GithubSyncCancelled");
+                return;
+            }
+
+            var sourceDialog = new SyncSourceSelectWindow(candidateSourceOptions)
+            {
+                Owner = Application.Current?.MainWindow
+            };
+            sourceDialog.SetTexts(
+                L("Dialog.GithubSync.SourceSelectTitle"),
+                L("Dialog.GithubSync.SourceSelectHeader"),
+                L("Dialog.GithubSync.SourceSelectHint"),
+                L("Common.SelectAll"),
+                L("Common.UnselectAll"),
+                L("Common.Confirm"),
+                L("Common.Cancel"),
+                L("Msg.GithubSourceRequired"),
+                L("Dialog.Title.Tip"));
+            if (sourceDialog.ShowDialog() != true)
+            {
+                StatusMessage = L("Status.GithubSyncCancelled");
+                return;
+            }
+
+            var selectedSourcePaths = sourceDialog.SourceOptions
+                .Where(x => x.IsSelected)
+                .Select(x => x.SourcePath)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
             var duplicateEnabledCount = _modService.Settings.GithubSyncMods
-                .Where(x => x.Enabled && x.Available)
+                .Where(x => x.Enabled && x.Available && selectedSourcePaths.Contains(x.SourcePath))
                 .Select(x => NormalizeGithubRepo(x.RepoUrl))
                 .Where(x => !string.IsNullOrWhiteSpace(x))
                 .GroupBy(x => x, StringComparer.OrdinalIgnoreCase)
@@ -1433,7 +1482,7 @@ public partial class MainViewModel : ObservableObject
             });
 
             StatusMessage = L("Status.GithubSyncRunning");
-            var summary = await Task.Run(() => _githubSyncService.SyncAsync(_modService.Settings, allMods, progress));
+            var summary = await Task.Run(() => _githubSyncService.SyncAsync(_modService.Settings, allMods, selectedSourcePaths, progress));
             _modService.SaveSettings();
 
             RefreshModSources();
