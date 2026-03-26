@@ -237,7 +237,12 @@
                         <ColumnDefinition Width="1*"/>
                     </Grid.ColumnDefinitions>
 
-                    <Border x:Name="ToolModsPanel" Grid.Column="0" Style="{StaticResource CardBorderStyle}" Margin="0,0,6,0" MinHeight="420">
+                    <Border x:Name="ToolModsPanel"
+                            Grid.Column="0"
+                            Style="{StaticResource CardBorderStyle}"
+                            Margin="0,0,6,0"
+                            MinHeight="460"
+                            VerticalAlignment="Stretch">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
@@ -285,63 +290,69 @@
                                 </Border>
                             </WrapPanel>
 
-                            <ListBox Grid.Row="2"
-                                     Margin="0,8,0,0"
-                                     ItemsSource="{Binding FilteredToolModsView}"
-                                     SelectedItem="{Binding SelectedToolMod}"
-                                     ScrollViewer.VerticalScrollBarVisibility="Auto"
-                                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                                     ScrollViewer.CanContentScroll="True">
-                                <ListBox.ItemContainerStyle>
-                                    <Style TargetType="ListBoxItem">
-                                        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-                                    </Style>
-                                </ListBox.ItemContainerStyle>
-                                <ListBox.ItemTemplate>
-                                    <DataTemplate>
-                                        <Grid Margin="2,3">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto"/>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="Auto"/>
-                                            </Grid.ColumnDefinitions>
-                                            <Grid.RowDefinitions>
-                                                <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="Auto"/>
-                                            </Grid.RowDefinitions>
+                            <Border Grid.Row="2"
+                                    Margin="0,8,0,0"
+                                    BorderBrush="#D7E2EE"
+                                    BorderThickness="1"
+                                    CornerRadius="6"
+                                    Background="#F9FBFD">
+                                <ListBox BorderThickness="0"
+                                         ItemsSource="{Binding FilteredToolModsView}"
+                                         SelectedItem="{Binding SelectedToolMod}"
+                                         ScrollViewer.VerticalScrollBarVisibility="Visible"
+                                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                         ScrollViewer.CanContentScroll="True">
+                                    <ListBox.ItemContainerStyle>
+                                        <Style TargetType="ListBoxItem">
+                                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                        </Style>
+                                    </ListBox.ItemContainerStyle>
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid Margin="2,3">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                </Grid.RowDefinitions>
 
-                                            <CheckBox Grid.Column="0"
-                                                      Grid.RowSpan="3"
-                                                      IsChecked="{Binding IsEnabled, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                      Margin="0,0,8,0"
-                                                      Command="{Binding DataContext.ToggleToolModCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                      CommandParameter="{Binding}"/>
-                                            <StackPanel Grid.Column="1" Grid.Row="0" Orientation="Horizontal">
-                                                <TextBlock Text="{Binding DisplayName}" FontWeight="Bold" TextTrimming="CharacterEllipsis"/>
-                                                <TextBlock Text="  " />
-                                                <TextBlock Text="{Binding AuthorDisplay}" FontSize="11" Foreground="#5D7388" TextTrimming="CharacterEllipsis"/>
-                                            </StackPanel>
-                                            <TextBlock Grid.Column="1" Grid.Row="1" Text="{Binding LocationDisplay}" FontSize="11" Foreground="#5D7388" TextTrimming="CharacterEllipsis"/>
-                                            <Border Grid.Column="1" Grid.Row="2" Margin="0,3,0,0" Padding="6,2" Background="#FFF2E5" BorderBrush="#E1B48A" BorderThickness="1" CornerRadius="4">
-                                                <TextBlock Text="{Binding SourcePath}" FontSize="10" Foreground="#8A4F1D" TextTrimming="CharacterEllipsis"/>
-                                            </Border>
-                                            <StackPanel Grid.Column="2" Grid.RowSpan="3" Margin="10,0,0,0" HorizontalAlignment="Right">
-                                                <Border Padding="6,1" Background="#E8F4FF" BorderBrush="#9AC5E8" BorderThickness="1" CornerRadius="4" HorizontalAlignment="Right">
-                                                    <TextBlock Text="{Binding Tag}" FontSize="10" Foreground="#1D5E8A" TextAlignment="Right"/>
+                                                <CheckBox Grid.Column="0"
+                                                          Grid.RowSpan="3"
+                                                          IsChecked="{Binding IsEnabled, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                          Margin="0,0,8,0"
+                                                          Command="{Binding DataContext.ToggleToolModCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                          CommandParameter="{Binding}"/>
+                                                <StackPanel Grid.Column="1" Grid.Row="0" Orientation="Horizontal">
+                                                    <TextBlock Text="{Binding DisplayName}" FontWeight="Bold" TextTrimming="CharacterEllipsis"/>
+                                                    <TextBlock Text="  " />
+                                                    <TextBlock Text="{Binding AuthorDisplay}" FontSize="11" Foreground="#5D7388" TextTrimming="CharacterEllipsis"/>
+                                                </StackPanel>
+                                                <TextBlock Grid.Column="1" Grid.Row="1" Text="{Binding LocationDisplay}" FontSize="11" Foreground="#5D7388" TextTrimming="CharacterEllipsis"/>
+                                                <Border Grid.Column="1" Grid.Row="2" Margin="0,3,0,0" Padding="6,2" Background="#FFF2E5" BorderBrush="#E1B48A" BorderThickness="1" CornerRadius="4">
+                                                    <TextBlock Text="{Binding SourcePath}" FontSize="10" Foreground="#8A4F1D" TextTrimming="CharacterEllipsis"/>
                                                 </Border>
-                                                <Button Content="{Binding DataContext.Loc[Common.Open], RelativeSource={RelativeSource AncestorType=Window}}"
-                                                        Command="{Binding DataContext.OpenModFolderCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                        CommandParameter="{Binding}"
-                                                        Padding="8,2"
-                                                        Width="62"
-                                                        Margin="0,6,0,0"
-                                                        HorizontalAlignment="Right"/>
-                                            </StackPanel>
-                                        </Grid>
-                                    </DataTemplate>
-                                </ListBox.ItemTemplate>
-                            </ListBox>
+                                                <StackPanel Grid.Column="2" Grid.RowSpan="3" Margin="10,0,0,0" HorizontalAlignment="Right">
+                                                    <Border Padding="6,1" Background="#E8F4FF" BorderBrush="#9AC5E8" BorderThickness="1" CornerRadius="4" HorizontalAlignment="Right">
+                                                        <TextBlock Text="{Binding Tag}" FontSize="10" Foreground="#1D5E8A" TextAlignment="Right"/>
+                                                    </Border>
+                                                    <Button Content="{Binding DataContext.Loc[Common.Open], RelativeSource={RelativeSource AncestorType=Window}}"
+                                                            Command="{Binding DataContext.OpenModFolderCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                            CommandParameter="{Binding}"
+                                                            Padding="8,2"
+                                                            Width="62"
+                                                            Margin="0,6,0,0"
+                                                            HorizontalAlignment="Right"/>
+                                                </StackPanel>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </Border>
 
                             <WrapPanel Grid.Row="3" Margin="0,8,0,0">
                                 <Button Content="{Binding Loc[Source.Add]}" Command="{Binding AddModSourceCommand}"/>
@@ -353,8 +364,14 @@
                         </Grid>
                     </Border>
 
-                    <Border Grid.Column="1" Style="{StaticResource CardBorderStyle}" Margin="6,0,0,0" MinHeight="420" Height="{Binding ActualHeight, ElementName=ToolModsPanel}">
-                        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <Border Grid.Column="1"
+                            Style="{StaticResource CardBorderStyle}"
+                            Margin="6,0,0,0"
+                            MinHeight="460"
+                            VerticalAlignment="Stretch">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                      HorizontalScrollBarVisibility="Disabled"
+                                      CanContentScroll="False">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
