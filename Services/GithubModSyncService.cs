@@ -70,6 +70,7 @@ public class GithubModSyncService
                 ModKey = mod.ModKey,
                 FolderName = mod.FolderName,
                 SourcePath = mod.SourcePath,
+                Tags = ParseTags(mod.Tag),
                 RepoUrl = repoUrl,
                 Enabled = true,
                 Available = true,
@@ -105,7 +106,7 @@ public class GithubModSyncService
 
         var enabledRecords = settings.GithubSyncMods
             .Where(x => x.Enabled && x.Available && !string.IsNullOrWhiteSpace(x.RepoUrl))
-            .Where(x => selectedSourcePaths == null || selectedSourcePaths.Contains(x.SourcePath))
+            .Where(x => selectedSourcePaths == null || selectedSourcePaths.Contains(NormalizeSourcePath(x.SourcePath)))
             .Where(x => selectedModKeys == null || selectedModKeys.Contains(x.ModKey))
             .ToList();
         LogInfo($"参与同步的启用记录数: {enabledRecords.Count}");
@@ -130,6 +131,7 @@ public class GithubModSyncService
         var current = 0;
         foreach (var record in targetRecords)
         {
+            NormalizeRecordLocation(record);
             cancellationToken.ThrowIfCancellationRequested();
             current++;
             progress?.Report(new GithubSyncProgress
@@ -142,13 +144,21 @@ public class GithubModSyncService
             var modLookupKey = $"{record.SourcePath}|{record.FolderName}";
             if (!modMap.TryGetValue(modLookupKey, out var mod))
             {
-                record.Available = false;
-                record.Enabled = false;
-                record.LastError = "未找到本地Mod目录";
-                record.LastSyncAt = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-                summary.Invalid++;
-                LogInfo($"[{record.FolderName}] 失败：未找到本地目录，Key={modLookupKey}");
-                continue;
+                if (string.IsNullOrWhiteSpace(record.ModKey))
+                {
+                    mod = BuildVirtualMod(record);
+                    LogInfo($"[{record.FolderName}] 本地目录不存在，按空ModKey规则创建新目录更新: {mod.FolderPath}");
+                }
+                else
+                {
+                    record.Available = false;
+                    record.Enabled = false;
+                    record.LastError = "未找到本地Mod目录";
+                    record.LastSyncAt = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                    summary.Invalid++;
+                    LogInfo($"[{record.FolderName}] 失败：未找到本地目录，Key={modLookupKey}");
+                    continue;
+                }
             }
 
             LogInfo($"[{record.FolderName}] 开始同步，仓库={record.RepoUrl}, 当前版本={record.CurrentVersion}");
@@ -295,6 +305,10 @@ public class GithubModSyncService
 
             var mergedMeta = _modService.LoadModMetaByPath(targetFolder, newFolderName);
             MergeMissingFields(mergedMeta, modMeta);
+            if (string.IsNullOrWhiteSpace(mergedMeta.Tag) && record.Tags.Count > 0)
+            {
+                mergedMeta.Tag = record.Tags[0];
+            }
             mergedMeta.Version = release.Tag;
             mergedMeta.DownloadUrl = release.AssetUrls.FirstOrDefault() ?? mergedMeta.DownloadUrl;
             mergedMeta.DetailUrl = release.ReleaseUrl;
@@ -386,6 +400,63 @@ public class GithubModSyncService
     private static string FillIfEmpty(string target, string fallback)
     {
         return string.IsNullOrWhiteSpace(target) ? fallback : target;
+    }
+
+    private static List<string> ParseTags(string? tag)
+    {
+        if (string.IsNullOrWhiteSpace(tag))
+        {
+            return new List<string>();
+        }
+
+        return tag
+            .Split([',', ';', '|', '，', '、'], StringSplitOptions.RemoveEmptyEntries)
+            .Select(x => x.Trim())
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private static void NormalizeRecordLocation(GithubSyncModItem record)
+    {
+        record.SourcePath = NormalizeSourcePath(record.SourcePath);
+
+        if (string.IsNullOrWhiteSpace(record.FolderName))
+        {
+            var repo = TryParseRepo(record.RepoUrl);
+            record.FolderName = repo?.name ?? "UnnamedMod";
+        }
+
+        if (string.IsNullOrWhiteSpace(record.ModKey))
+        {
+            record.ModKey = string.Empty;
+        }
+    }
+
+    private static ModInfo BuildVirtualMod(GithubSyncModItem record)
+    {
+        var sourcePath = NormalizeSourcePath(record.SourcePath);
+        var folderName = string.IsNullOrWhiteSpace(record.FolderName)
+            ? (TryParseRepo(record.RepoUrl)?.name ?? "UnnamedMod")
+            : record.FolderName;
+        var folderPath = Path.Combine(sourcePath, folderName);
+        return new ModInfo
+        {
+            ModKey = $"{sourcePath}|{folderName}",
+            FolderName = folderName,
+            FolderPath = folderPath,
+            SourcePath = sourcePath,
+            SourceName = Path.GetFileName(sourcePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)),
+            DisplayName = folderName,
+            IsEnabled = true
+        };
+    }
+
+    private static string NormalizeSourcePath(string? sourcePath)
+    {
+        return string.IsNullOrWhiteSpace(sourcePath)
+            ? GamePathService.ToolModsDir
+            : sourcePath.Trim();
     }
 
     private static void FlattenSupportedFiles(string sourceRoot, string flatDir, HashSet<string> copiedHashes)

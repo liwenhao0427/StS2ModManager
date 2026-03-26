@@ -1419,7 +1419,7 @@ public partial class MainViewModel : ObservableObject
 
             var candidateSourceOptions = _modService.Settings.GithubSyncMods
                 .Where(x => x.Enabled && x.Available && !string.IsNullOrWhiteSpace(x.RepoUrl))
-                .Select(x => x.SourcePath)
+                .Select(x => string.IsNullOrWhiteSpace(x.SourcePath) ? GamePathService.ToolModsDir : x.SourcePath.Trim())
                 .Where(x => !string.IsNullOrWhiteSpace(x))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)

@@ -36,6 +36,39 @@ public class SettingsService
                 .ToList();
             settings.ModAliases ??= new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             settings.GithubSyncMods ??= new List<GithubSyncModItem>();
+            foreach (var item in settings.GithubSyncMods)
+            {
+                item.Tags ??= new List<string>();
+                item.Tags = item.Tags
+                    .Where(x => !string.IsNullOrWhiteSpace(x))
+                    .Select(x => x.Trim())
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+            }
+            settings.FixedModTags ??= new List<string>();
+            if (settings.FixedModTags.Count == 0)
+            {
+                settings.FixedModTags =
+                [
+                    "体验优化",
+                    "前置依赖",
+                    "开发工具",
+                    "玩法扩展",
+                    "新角色",
+                    "新卡牌",
+                    "难度调整",
+                    "修改工具",
+                    "皮肤"
+                ];
+            }
+            else
+            {
+                settings.FixedModTags = settings.FixedModTags
+                    .Where(x => !string.IsNullOrWhiteSpace(x))
+                    .Select(x => x.Trim())
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+            }
             settings.PreferredGithubSyncSourcePaths ??= new List<string>();
             settings.PreferredGithubSyncSourcePaths = settings.PreferredGithubSyncSourcePaths
                 .Where(x => !string.IsNullOrWhiteSpace(x))
@@ -63,6 +96,31 @@ public class SettingsService
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
             settings.GithubSyncMods ??= new List<GithubSyncModItem>();
+            foreach (var item in settings.GithubSyncMods)
+            {
+                item.Tags ??= new List<string>();
+                item.Tags = item.Tags
+                    .Where(x => !string.IsNullOrWhiteSpace(x))
+                    .Select(x => x.Trim())
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+            }
+            settings.FixedModTags ??= new List<string>();
+            if (settings.FixedModTags.Count == 0)
+            {
+                settings.FixedModTags =
+                [
+                    "体验优化",
+                    "前置依赖",
+                    "开发工具",
+                    "玩法扩展",
+                    "新角色",
+                    "新卡牌",
+                    "难度调整",
+                    "修改工具",
+                    "皮肤"
+                ];
+            }
             settings.PreferredGithubSyncSourcePaths ??= new List<string>();
             settings.PreferredGithubSyncSourcePaths = settings.PreferredGithubSyncSourcePaths
                 .Where(x => !string.IsNullOrWhiteSpace(x))

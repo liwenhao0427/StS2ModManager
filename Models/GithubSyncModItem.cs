@@ -5,6 +5,7 @@ public class GithubSyncModItem
     public string ModKey { get; set; } = string.Empty;
     public string FolderName { get; set; } = string.Empty;
     public string SourcePath { get; set; } = string.Empty;
+    public List<string> Tags { get; set; } = new();
     public string RepoUrl { get; set; } = string.Empty;
     public bool Enabled { get; set; } = true;
     public bool Available { get; set; } = true;
