@@ -133,10 +133,8 @@ public static class ThemeService
 
     private static void Set(ResourceDictionary res, string key, Color color)
     {
-        if (res[key] is SolidColorBrush b)
-            b.Color = color;
-        else
-            res[key] = new SolidColorBrush(color);
+        // 必须替换整个对象，DynamicResource 才能感知变化
+        res[key] = new SolidColorBrush(color);
     }
 
     private static Color C(byte r, byte g, byte b) => Color.FromRgb(r, g, b);

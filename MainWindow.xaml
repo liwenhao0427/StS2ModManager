@@ -113,12 +113,12 @@
         </Style>
 
         <Style x:Key="PrimaryButtonStyle" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-            <Setter Property="Background" Value="{StaticResource PrimaryBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource PrimaryBrush}"/>
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="BorderBrush" Value="#0A5F9F"/>
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="{StaticResource PrimaryHoverBrush}"/>
+                    <Setter Property="Background" Value="{DynamicResource PrimaryHoverBrush}"/>
                 </Trigger>
                 <Trigger Property="IsPressed" Value="True">
                     <Setter Property="Background" Value="#0A588F"/>
@@ -127,12 +127,12 @@
         </Style>
 
         <Style x:Key="AccentButtonStyle" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-            <Setter Property="Background" Value="{StaticResource AccentBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="BorderBrush" Value="#0C5B55"/>
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="{StaticResource AccentHoverBrush}"/>
+                    <Setter Property="Background" Value="{DynamicResource AccentHoverBrush}"/>
                 </Trigger>
                 <Trigger Property="IsPressed" Value="True">
                     <Setter Property="Background" Value="#094D47"/>
@@ -214,7 +214,7 @@
                 </Grid.ColumnDefinitions>
                 <StackPanel>
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="{Binding Loc[App.Title]}" FontSize="27" FontWeight="Bold" Foreground="{StaticResource TitleBrush}"/>
+                        <TextBlock Text="{Binding Loc[App.Title]}" FontSize="27" FontWeight="Bold" Foreground="{DynamicResource TitleBrush}"/>
                         <TextBlock Text="{Binding AppVersion}" FontSize="14" FontWeight="Normal" Foreground="{DynamicResource VersionFg}" VerticalAlignment="Bottom" Margin="8,0,0,4"/>
                     </StackPanel>
                     <TextBlock Text="{Binding Loc[App.Subtitle]}" Margin="0,4,0,0" Foreground="{DynamicResource SubtextFg}"/>
@@ -326,7 +326,7 @@
                             </Grid.RowDefinitions>
 
                             <WrapPanel Grid.Row="0" VerticalAlignment="Center">
-                                <TextBlock Text="{Binding Loc[ModList.Title]}" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TitleBrush}"/>
+                                <TextBlock Text="{Binding Loc[ModList.Title]}" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource TitleBrush}"/>
                                 <Button Content="{Binding Loc[Common.Refresh]}" Command="{Binding RefreshToolModsCommand}" Margin="10,0,0,0" Padding="10,3"/>
                                 <Button Content="{Binding Loc[Mods.SyncGithub]}"
                                         Command="{Binding SyncGithubModsCommand}"
@@ -454,7 +454,7 @@
                                 <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
 
-                            <TextBlock Grid.Row="0" Text="{Binding Loc[ModDetail.Title]}" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TitleBrush}"/>
+                            <TextBlock Grid.Row="0" Text="{Binding Loc[ModDetail.Title]}" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource TitleBrush}"/>
 
                             <Grid Grid.Row="1" Margin="0,8,0,0">
                                  <Grid.RowDefinitions>
@@ -671,7 +671,7 @@
                         </Grid.RowDefinitions>
 
                         <WrapPanel Grid.Row="0" VerticalAlignment="Center">
-                            <TextBlock Text="{Binding Loc[Save.Title]}" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TitleBrush}"/>
+                            <TextBlock Text="{Binding Loc[Save.Title]}" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource TitleBrush}"/>
                             <Button Content="{Binding Loc[Save.OpenSavesDir]}" Command="{Binding OpenSavesDirectoryCommand}" Margin="14,0,0,0"/>
                             <Button Content="{Binding Loc[Save.OpenBackupDir]}" Command="{Binding OpenBackupDirectoryCommand}"/>
                             <Button Content="{Binding Loc[Save.RefreshSteamId]}" Command="{Binding RefreshSteamIdsCommand}"/>
