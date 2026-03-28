@@ -204,7 +204,7 @@ public partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(DarkModeIcon));
     }
 
-    public string DarkModeIcon => IsDarkMode ? "☀️" : "🌙";
+    public string DarkModeIcon => IsDarkMode ? L("Common.LightMode") : L("Common.DarkMode");
 
     [RelayCommand]
     private void ToggleDarkMode() => IsDarkMode = !IsDarkMode;
@@ -537,6 +537,7 @@ public partial class MainViewModel : ObservableObject
         RefreshSaveBackups();
 
         OnPropertyChanged(nameof(AppTitle));
+        OnPropertyChanged(nameof(DarkModeIcon));
 
         if (string.IsNullOrWhiteSpace(SelectedPath))
         {
