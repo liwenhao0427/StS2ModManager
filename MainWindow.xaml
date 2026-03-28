@@ -168,9 +168,9 @@
         </Style>
 
         <Style TargetType="ComboBox">
-            <Setter Property="Background" Value="{DynamicResource InputBg}"/>
-            <Setter Property="Foreground" Value="{DynamicResource InputFg}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource InputBorder}"/>
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="Foreground" Value="#304256"/>
+            <Setter Property="BorderBrush" Value="#C7D6E7"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="8,4"/>
         </Style>

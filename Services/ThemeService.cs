@@ -126,35 +126,39 @@ public static class ThemeService
         var win = Application.Current.MainWindow;
         if (win == null) return;
 
-        // 自定义画刷写入 Window.Resources（DynamicResource 在可视树内查找）
         var res = win.Resources;
         foreach (var (key, color) in palette)
             res[key] = new SolidColorBrush(color);
 
         win.Background = new SolidColorBrush(palette["WindowBg"]);
 
-        // SystemColors 必须写入 Application.Resources
-        // 因为 ComboBox 的 Popup 是独立顶层窗口，不在 Window 可视树内
+        // ComboBox 的 Popup 是独立顶层窗口，SystemColors 覆盖不可靠
+        // 深色模式下让 ComboBox 保持亮色样式（白底深字），避免下拉内容不可见
         var appRes = Application.Current.Resources;
-
-        var inputBg     = new SolidColorBrush(palette["InputBg"]);
-        var inputFg     = new SolidColorBrush(palette["InputFg"]);
-        var textBrush   = new SolidColorBrush(palette["TextFg"]);
-        var highlightBg = new SolidColorBrush(dark ? C(0x2A, 0x50, 0x80) : C(0x33, 0x99, 0xFF));
-        var highlightFg = new SolidColorBrush(Colors.White);
-
-        // ComboBox 下拉弹出层背景和文字
-        appRes[SystemColors.WindowBrushKey]          = inputBg;
-        appRes[SystemColors.WindowTextBrushKey]       = inputFg;
-        // 通用控件文字（CheckBox、RadioButton 等）
-        appRes[SystemColors.ControlTextBrushKey]      = textBrush;
-        // 选中项高亮
-        appRes[SystemColors.HighlightBrushKey]        = highlightBg;
-        appRes[SystemColors.HighlightTextBrushKey]    = highlightFg;
-        appRes[SystemColors.InactiveSelectionHighlightBrushKey]     = highlightBg;
-        appRes[SystemColors.InactiveSelectionHighlightTextBrushKey] = highlightFg;
-        // 控件背景
-        appRes[SystemColors.ControlBrushKey]          = inputBg;
+        if (dark)
+        {
+            // ComboBox 保持亮色
+            appRes[SystemColors.WindowBrushKey]       = new SolidColorBrush(Colors.White);
+            appRes[SystemColors.WindowTextBrushKey]    = new SolidColorBrush(C(0x30, 0x42, 0x56));
+            appRes[SystemColors.HighlightBrushKey]     = new SolidColorBrush(C(0x33, 0x99, 0xFF));
+            appRes[SystemColors.HighlightTextBrushKey] = new SolidColorBrush(Colors.White);
+            appRes[SystemColors.InactiveSelectionHighlightBrushKey]     = new SolidColorBrush(C(0x33, 0x99, 0xFF));
+            appRes[SystemColors.InactiveSelectionHighlightTextBrushKey] = new SolidColorBrush(Colors.White);
+            appRes[SystemColors.ControlBrushKey]       = new SolidColorBrush(Colors.White);
+            appRes[SystemColors.ControlTextBrushKey]   = new SolidColorBrush(C(0x30, 0x42, 0x56));
+        }
+        else
+        {
+            // 亮色模式恢复默认（移除覆盖）
+            appRes.Remove(SystemColors.WindowBrushKey);
+            appRes.Remove(SystemColors.WindowTextBrushKey);
+            appRes.Remove(SystemColors.HighlightBrushKey);
+            appRes.Remove(SystemColors.HighlightTextBrushKey);
+            appRes.Remove(SystemColors.InactiveSelectionHighlightBrushKey);
+            appRes.Remove(SystemColors.InactiveSelectionHighlightTextBrushKey);
+            appRes.Remove(SystemColors.ControlBrushKey);
+            appRes.Remove(SystemColors.ControlTextBrushKey);
+        }
     }
 
     private static Color C(byte r, byte g, byte b) => Color.FromRgb(r, g, b);
