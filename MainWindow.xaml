@@ -403,7 +403,7 @@
                                                           Command="{Binding DataContext.ToggleToolModCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                           CommandParameter="{Binding}"/>
                                                 <StackPanel Grid.Column="1" Grid.Row="0" Orientation="Horizontal">
-                                                    <TextBlock Text="{Binding DisplayName}" FontWeight="Bold" TextTrimming="CharacterEllipsis"/>
+                                                    <TextBlock Text="{Binding DisplayName}" FontWeight="Bold" Foreground="{DynamicResource TitleBrush}" TextTrimming="CharacterEllipsis"/>
                                                     <TextBlock Text="  " />
                                                     <TextBlock Text="{Binding AuthorDisplay}" FontSize="11" Foreground="{DynamicResource MutedFg}" TextTrimming="CharacterEllipsis"/>
                                                 </StackPanel>

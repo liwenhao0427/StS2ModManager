@@ -79,3 +79,9 @@
 
 5. GitHub Release 上传命令（仅上传两个exe）：
    - `$env:GODEBUG='http2client=0'; gh release create <tag> ".\ReleaseSingle\StS2ModManager.Net.exe" ".\ReleaseSingle\StS2ModManager.exe" --title "<tag>" --notes "<notes>" --target main`
+
+### 版本号管理
+- 版本号统一维护在项目根目录的 `VERSION` 文件中（纯文本，如 `1.2.0`）
+- csproj 通过 MSBuild 表达式自动读取 VERSION 文件
+- 发布 tag 格式为 `v<VERSION>`（如 `v1.2.0`）
+- 每次发布前先更新 VERSION 文件，再打包
