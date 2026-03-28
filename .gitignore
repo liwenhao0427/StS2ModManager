@@ -51,3 +51,15 @@ logs/
 # OS
 .DS_Store
 Thumbs.db
+
+# Release output
+ReleaseSingle/
+temp_build/
+
+# dotnet tool sentinel files
+.dotnet/
+
+# Large binary / release archives
+*.zip
+*.7z
+*.tar.gz
