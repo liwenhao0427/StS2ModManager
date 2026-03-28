@@ -123,3 +123,14 @@ dotnet publish "StS2ModManager.csproj" -c Release -r win-x64 -p:PublishSingleFil
 ## License
 
 This repository currently has no explicit open-source license file. If you plan to redistribute or modify it publicly, please add a `LICENSE` file first.
+
+---
+
+<details>
+<summary>☕ 支持作者</summary>
+
+如果这个工具对你有帮助，欢迎请作者喝杯咖啡。
+
+![捐赠支持作者开发](./捐赠支持作者开发.jpeg)
+
+</details>

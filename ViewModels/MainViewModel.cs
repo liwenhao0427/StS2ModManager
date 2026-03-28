@@ -1341,6 +1341,16 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private void ShowDonate()
+    {
+        var win = new DonateWindow
+        {
+            Owner = Application.Current?.MainWindow
+        };
+        win.ShowDialog();
+    }
+
+    [RelayCommand]
     private void EnableFullConsole()
     {
         var steamId = SelectedSteamId ?? _saveService.GetLatestSteamId();

@@ -27,4 +27,8 @@
     <PackageReference Include="Serilog.Sinks.File" Version="5.0.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Resource Include="捐赠支持作者开发.jpeg"/>
+  </ItemGroup>
+
 </Project>

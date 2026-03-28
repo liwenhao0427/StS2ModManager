@@ -96,3 +96,14 @@ Release output directory:
 ## License
 
 This repository currently has no explicit open-source license file. If you plan to redistribute or modify it publicly, please add a `LICENSE` file first.
+
+---
+
+<details>
+<summary>☕ Support the Author</summary>
+
+If this tool has been helpful, feel free to buy the author a coffee.
+
+![Donate](./捐赠支持作者开发.jpeg)
+
+</details>
