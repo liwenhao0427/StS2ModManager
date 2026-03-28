@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:helpers="clr-namespace:StS2ModManager.Helpers"
         mc:Ignorable="d"
-        Title="{Binding Loc[App.Title]}"
+        Title="{Binding AppTitle}"
         Width="1080"
         Height="740"
         MinWidth="940"
@@ -172,7 +172,10 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <StackPanel>
-                    <TextBlock Text="{Binding Loc[App.Title]}" FontSize="27" FontWeight="Bold" Foreground="{StaticResource TitleBrush}"/>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="{Binding Loc[App.Title]}" FontSize="27" FontWeight="Bold" Foreground="{StaticResource TitleBrush}"/>
+                        <TextBlock Text="{Binding AppVersion}" FontSize="14" FontWeight="Normal" Foreground="#7A9AB5" VerticalAlignment="Bottom" Margin="8,0,0,4"/>
+                    </StackPanel>
                     <TextBlock Text="{Binding Loc[App.Subtitle]}" Margin="0,4,0,0" Foreground="#587086"/>
                 </StackPanel>
                 <WrapPanel Grid.Column="1" VerticalAlignment="Center" Margin="12,0,4,0">
@@ -612,6 +615,7 @@
                             <Button Content="{Binding Loc[Save.OpenBackupDir]}" Command="{Binding OpenBackupDirectoryCommand}"/>
                             <Button Content="{Binding Loc[Save.RefreshSteamId]}" Command="{Binding RefreshSteamIdsCommand}"/>
                             <Button Content="{Binding Loc[Save.RefreshBackups]}" Command="{Binding RefreshSaveBackupsCommand}"/>
+                            <Button Content="{Binding Loc[Save.EnableFullConsole]}" Command="{Binding EnableFullConsoleCommand}" Margin="8,0,0,0" Style="{StaticResource PrimaryButtonStyle}"/>
                         </WrapPanel>
 
                         <WrapPanel Grid.Row="1" Margin="0,8,0,0" VerticalAlignment="Center">

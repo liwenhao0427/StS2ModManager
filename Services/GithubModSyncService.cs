@@ -18,6 +18,14 @@ public class GithubSyncSummary
     public int Latest { get; set; }
     public int DuplicateRepoHints { get; set; }
     public string LogFilePath { get; set; } = string.Empty;
+    public List<string> FailureReasons { get; set; } = new();
+}
+
+public enum GhCheckResult
+{
+    Ok,
+    NotInstalled,
+    NotLoggedIn
 }
 
 public class GithubSyncProgress
@@ -37,6 +45,45 @@ public class GithubModSyncService
     public GithubModSyncService(ModService modService)
     {
         _modService = modService;
+    }
+
+    public static GhCheckResult CheckGhAvailable()
+    {
+        try
+        {
+            // 先检查gh是否存在
+            var psi = new ProcessStartInfo
+            {
+                FileName = "gh",
+                Arguments = "auth status",
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true,
+                StandardOutputEncoding = Encoding.UTF8,
+                StandardErrorEncoding = Encoding.UTF8
+            };
+            using var process = Process.Start(psi);
+            if (process == null) return GhCheckResult.NotInstalled;
+            var stderr = process.StandardError.ReadToEnd();
+            process.WaitForExit();
+            if (process.ExitCode == 0) return GhCheckResult.Ok;
+            // gh auth status 失败时stderr包含登录提示
+            if (stderr.Contains("gh auth login") || stderr.Contains("GH_TOKEN") || stderr.Contains("not logged"))
+            {
+                return GhCheckResult.NotLoggedIn;
+            }
+            return GhCheckResult.Ok;
+        }
+        catch (Exception ex)
+        {
+            var msg = ex.Message;
+            if (msg.Contains("找不到指定的文件") || msg.Contains("cannot find") || msg.Contains("No such file") || msg.Contains("start process"))
+            {
+                return GhCheckResult.NotInstalled;
+            }
+            return GhCheckResult.NotInstalled;
+        }
     }
 
     public void EnsureGithubSyncList(AppSettings settings, IEnumerable<ModInfo> mods)
@@ -194,6 +241,10 @@ public class GithubModSyncService
             else
             {
                 summary.Invalid++;
+                if (!string.IsNullOrWhiteSpace(result.ErrorMessage))
+                {
+                    summary.FailureReasons.Add(result.ErrorMessage);
+                }
                 LogInfo($"[{record.FolderName}] 更新失败：{result.ErrorMessage}");
             }
         }

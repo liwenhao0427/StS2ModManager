@@ -190,6 +190,11 @@ public partial class MainViewModel : ObservableObject
 
     public ICollectionView FilteredToolModsView { get; }
 
+    public string AppVersion { get; } = System.Reflection.Assembly.GetExecutingAssembly()
+        .GetName().Version is { } v ? $"v{v.Major}.{v.Minor}.{v.Build}" : string.Empty;
+
+    public string AppTitle => $"{Loc["App.Title"]} {AppVersion}".Trim();
+
     public MainViewModel()
     {
         _pathService = new GamePathService();
@@ -516,6 +521,8 @@ public partial class MainViewModel : ObservableObject
         UpdateTagFilters();
         RefreshToolModsFilter();
         RefreshSaveBackups();
+
+        OnPropertyChanged(nameof(AppTitle));
 
         if (string.IsNullOrWhiteSpace(SelectedPath))
         {
@@ -1334,6 +1341,69 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private void EnableFullConsole()
+    {
+        var steamId = SelectedSteamId ?? _saveService.GetLatestSteamId();
+        if (string.IsNullOrWhiteSpace(steamId))
+        {
+            MessageBox.Show(L("Msg.SelectSteamIdFirst"), L("Dialog.Title.Tip"), MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        var settingsPath = Path.Combine(_saveService.GetSteamBasePath(), steamId, "settings.save");
+        if (!File.Exists(settingsPath))
+        {
+            MessageBox.Show(F("Msg.SettingsJsonNotFound", settingsPath), L("Dialog.Title.Error"), MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
+
+        try
+        {
+            var json = File.ReadAllText(settingsPath);
+            using var doc = System.Text.Json.JsonDocument.Parse(json);
+            var root = doc.RootElement;
+
+            // 检查是否已存在
+            if (root.TryGetProperty("full_console", out var existing) && existing.GetBoolean())
+            {
+                MessageBox.Show(L("Msg.FullConsoleAlreadyEnabled"), L("Dialog.Title.Tip"), MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            // 重新序列化并插入 full_console: true
+            var dict = new System.Collections.Generic.SortedDictionary<string, System.Text.Json.JsonElement>(StringComparer.Ordinal);
+            foreach (var prop in root.EnumerateObject())
+            {
+                dict[prop.Name] = prop.Value.Clone();
+            }
+
+            using var ms = new System.IO.MemoryStream();
+            using var writer = new System.Text.Json.Utf8JsonWriter(ms, new System.Text.Json.JsonWriterOptions { Indented = true });
+            writer.WriteStartObject();
+            // 先写入已有属性（按原顺序），再追加 full_console
+            foreach (var prop in root.EnumerateObject())
+            {
+                prop.WriteTo(writer);
+            }
+            if (!root.TryGetProperty("full_console", out _))
+            {
+                writer.WriteBoolean("full_console", true);
+            }
+            writer.WriteEndObject();
+            writer.Flush();
+
+            var newJson = System.Text.Encoding.UTF8.GetString(ms.ToArray());
+            File.WriteAllText(settingsPath, newJson, System.Text.Encoding.UTF8);
+            StatusMessage = L("Status.FullConsoleEnabled");
+            MessageBox.Show(F("Msg.FullConsoleEnabled", settingsPath), L("Dialog.Title.Success"), MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(F("Msg.OperationFailed", ex.Message), L("Dialog.Title.Error"), MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    [RelayCommand]
     private void LaunchGame()
     {
         if (string.IsNullOrWhiteSpace(SelectedPath))
@@ -1398,6 +1468,17 @@ public partial class MainViewModel : ObservableObject
     {
         if (IsGithubSyncRunning)
         {
+            return;
+        }
+
+        // 预检查 gh 是否可用
+        var ghCheck = await Task.Run(() => GithubModSyncService.CheckGhAvailable());
+        if (ghCheck != GhCheckResult.Ok)
+        {
+            var msg = ghCheck == GhCheckResult.NotInstalled
+                ? L("Msg.GhNotInstalled")
+                : L("Msg.GhNotLoggedIn");
+            MessageBox.Show(Application.Current?.MainWindow, msg, L("Dialog.Title.Error"), MessageBoxButton.OK, MessageBoxImage.Error);
             return;
         }
 
@@ -1532,7 +1613,10 @@ public partial class MainViewModel : ObservableObject
                 progressWindow = null;
             }
             BringMainWindowToFront();
-            var msg = F("Msg.GithubSyncSummary", summary.Updated, summary.Invalid, summary.Latest, summary.DuplicateRepoHints, summary.LogFilePath);
+            var failureDetail = summary.FailureReasons.Count > 0
+                ? "\n\n" + L("Msg.GithubSyncFailureReasons") + "\n" + string.Join("\n", summary.FailureReasons.Distinct(StringComparer.OrdinalIgnoreCase).Select(r => $"• {r}"))
+                : string.Empty;
+            var msg = F("Msg.GithubSyncSummary", summary.Updated, summary.Invalid, summary.Latest, summary.DuplicateRepoHints, summary.LogFilePath) + failureDetail;
             MessageBox.Show(Application.Current?.MainWindow, msg, L("Dialog.Title.Success"), MessageBoxButton.OK, MessageBoxImage.Information);
             StatusMessage = L("Status.GithubSyncDone");
         }
@@ -1563,6 +1647,17 @@ public partial class MainViewModel : ObservableObject
     {
         if (IsGithubSyncRunning)
         {
+            return;
+        }
+
+        // 预检查 gh 是否可用
+        var ghCheck = await Task.Run(() => GithubModSyncService.CheckGhAvailable());
+        if (ghCheck != GhCheckResult.Ok)
+        {
+            var msg = ghCheck == GhCheckResult.NotInstalled
+                ? L("Msg.GhNotInstalled")
+                : L("Msg.GhNotLoggedIn");
+            MessageBox.Show(Application.Current?.MainWindow, msg, L("Dialog.Title.Error"), MessageBoxButton.OK, MessageBoxImage.Error);
             return;
         }
 
@@ -1646,7 +1741,10 @@ public partial class MainViewModel : ObservableObject
             }
 
             BringMainWindowToFront();
-            var msg = F("Msg.GithubSingleSyncSummary", summary.Updated, summary.Invalid, summary.Latest, summary.LogFilePath);
+            var failureDetail = summary.FailureReasons.Count > 0
+                ? "\n\n" + L("Msg.GithubSyncFailureReasons") + "\n" + string.Join("\n", summary.FailureReasons.Distinct(StringComparer.OrdinalIgnoreCase).Select(r => $"• {r}"))
+                : string.Empty;
+            var msg = F("Msg.GithubSingleSyncSummary", summary.Updated, summary.Invalid, summary.Latest, summary.LogFilePath) + failureDetail;
             MessageBox.Show(Application.Current?.MainWindow, msg, L("Dialog.Title.Success"), MessageBoxButton.OK, MessageBoxImage.Information);
             StatusMessage = L("Status.GithubSyncDone");
         }
