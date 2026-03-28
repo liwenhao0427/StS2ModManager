@@ -24,16 +24,26 @@
             </CollectionViewSource.GroupDescriptions>
         </CollectionViewSource>
 
-        <SolidColorBrush x:Key="CardBrush" Color="#FFFFFF"/>
-        <SolidColorBrush x:Key="LineBrush" Color="#D9E3EF"/>
-        <SolidColorBrush x:Key="TitleBrush" Color="#123047"/>
-        <SolidColorBrush x:Key="PrimaryBrush" Color="#1177CC"/>
+        <SolidColorBrush x:Key="CardBrush"        Color="#FFFFFF"/>
+        <SolidColorBrush x:Key="LineBrush"        Color="#D9E3EF"/>
+        <SolidColorBrush x:Key="TitleBrush"       Color="#123047"/>
+        <SolidColorBrush x:Key="PrimaryBrush"     Color="#1177CC"/>
         <SolidColorBrush x:Key="PrimaryHoverBrush" Color="#0D67AF"/>
-        <SolidColorBrush x:Key="AccentBrush" Color="#0F766E"/>
+        <SolidColorBrush x:Key="AccentBrush"      Color="#0F766E"/>
         <SolidColorBrush x:Key="AccentHoverBrush" Color="#0B615A"/>
+        <SolidColorBrush x:Key="TextFg"           Color="#304256"/>
+        <SolidColorBrush x:Key="BtnBg"            Color="#F4F7FB"/>
+        <SolidColorBrush x:Key="BtnFg"            Color="#294055"/>
+        <SolidColorBrush x:Key="BtnBorder"        Color="#C7D6E7"/>
+        <SolidColorBrush x:Key="BtnHover"         Color="#E7EFF8"/>
+        <SolidColorBrush x:Key="BtnPress"         Color="#D7E5F4"/>
+        <SolidColorBrush x:Key="InputBg"          Color="#FFFFFF"/>
+        <SolidColorBrush x:Key="InputBorder"      Color="#C7D6E7"/>
+        <SolidColorBrush x:Key="ListBg"           Color="#F9FBFD"/>
+        <SolidColorBrush x:Key="ListBorder"       Color="#D7E2EE"/>
 
         <Style TargetType="TextBlock">
-            <Setter Property="Foreground" Value="#304256"/>
+            <Setter Property="Foreground" Value="{StaticResource TextFg}"/>
         </Style>
 
         <Style x:Key="CardBorderStyle" TargetType="Border">
@@ -45,9 +55,9 @@
         </Style>
 
         <Style TargetType="Button">
-            <Setter Property="Background" Value="#F4F7FB"/>
-            <Setter Property="Foreground" Value="#294055"/>
-            <Setter Property="BorderBrush" Value="#C7D6E7"/>
+            <Setter Property="Background" Value="{StaticResource BtnBg}"/>
+            <Setter Property="Foreground" Value="{StaticResource BtnFg}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BtnBorder}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="12,6"/>
             <Setter Property="Margin" Value="2"/>
@@ -63,10 +73,10 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="#E7EFF8"/>
+                                <Setter Property="Background" Value="{StaticResource BtnHover}"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter Property="Background" Value="#D7E5F4"/>
+                                <Setter Property="Background" Value="{StaticResource BtnPress}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -117,8 +127,9 @@
         </Style>
 
         <Style TargetType="TextBox">
-            <Setter Property="Background" Value="#FFFFFF"/>
-            <Setter Property="BorderBrush" Value="#C7D6E7"/>
+            <Setter Property="Background" Value="{StaticResource InputBg}"/>
+            <Setter Property="Foreground" Value="{StaticResource TextFg}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource InputBorder}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="8,5"/>
         </Style>
@@ -128,8 +139,9 @@
         </Style>
 
         <Style TargetType="ComboBox">
-            <Setter Property="Background" Value="#FFFFFF"/>
-            <Setter Property="BorderBrush" Value="#C7D6E7"/>
+            <Setter Property="Background" Value="{StaticResource InputBg}"/>
+            <Setter Property="Foreground" Value="{StaticResource TextFg}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource InputBorder}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="8,4"/>
         </Style>
@@ -150,8 +162,8 @@
         </Style>
 
         <Style TargetType="ListBox">
-            <Setter Property="Background" Value="#F9FBFD"/>
-            <Setter Property="BorderBrush" Value="#D7E2EE"/>
+            <Setter Property="Background" Value="{StaticResource ListBg}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource ListBorder}"/>
             <Setter Property="BorderThickness" Value="1"/>
         </Style>
     </Window.Resources>
@@ -189,13 +201,21 @@
                     <Button Content="{Binding Loc[Common.Donate]}"
                             Command="{Binding ShowDonateCommand}"
                             Padding="8,4"
-                            Margin="0,0,6,0"
+                            Height="28"
+                            Margin="0,0,4,0"
                             FontSize="11"
                             Foreground="#8A6A2A"
                             Background="#FFF8EC"
                             BorderBrush="#E8D5A0"
                             ToolTip="支持作者开发"/>
-                    <TextBlock Text="🎮" FontSize="34" VerticalAlignment="Center"/>
+                    <Button Content="{Binding DarkModeIcon}"
+                            Command="{Binding ToggleDarkModeCommand}"
+                            Padding="8,4"
+                            Height="28"
+                            Margin="0,0,6,0"
+                            FontSize="13"
+                            ToolTip="{Binding Loc[Common.ToggleDark]}"/>
+                    <TextBlock Text="🎮" FontSize="28" VerticalAlignment="Center"/>
                 </StackPanel>
             </Grid>
         </Border>

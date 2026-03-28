@@ -99,11 +99,8 @@ This repository currently has no explicit open-source license file. If you plan 
 
 ---
 
-<details>
-<summary>☕ Support the Author</summary>
+## ☕ Support the Author
 
 If this tool has been helpful, feel free to buy the author a coffee.
 
 ![Donate](./捐赠支持作者开发.jpeg)
-
-</details>

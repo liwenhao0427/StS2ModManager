@@ -126,11 +126,8 @@ This repository currently has no explicit open-source license file. If you plan 
 
 ---
 
-<details>
-<summary>☕ 支持作者</summary>
+## ☕ 支持作者
 
 如果这个工具对你有帮助，欢迎请作者喝杯咖啡。
 
 ![捐赠支持作者开发](./捐赠支持作者开发.jpeg)
-
-</details>

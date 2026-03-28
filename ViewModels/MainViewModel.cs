@@ -195,6 +195,20 @@ public partial class MainViewModel : ObservableObject
 
     public string AppTitle => $"{Loc["App.Title"]} {AppVersion}".Trim();
 
+    [ObservableProperty]
+    private bool _isDarkMode;
+
+    partial void OnIsDarkModeChanged(bool value)
+    {
+        ThemeService.Apply(value);
+        OnPropertyChanged(nameof(DarkModeIcon));
+    }
+
+    public string DarkModeIcon => IsDarkMode ? "☀️" : "🌙";
+
+    [RelayCommand]
+    private void ToggleDarkMode() => IsDarkMode = !IsDarkMode;
+
     public MainViewModel()
     {
         _pathService = new GamePathService();
