@@ -122,19 +122,16 @@ public static class ThemeService
     public static void Apply(bool dark)
     {
         var palette = dark ? Dark : Light;
-        var res = Application.Current.Resources;
 
+        // 资源定义在 Window.Resources 里，必须修改同一个字典才能让 DynamicResource 生效
+        var win = Application.Current.MainWindow;
+        if (win == null) return;
+
+        var res = win.Resources;
         foreach (var (key, color) in palette)
-            Set(res, key, color);
+            res[key] = new SolidColorBrush(color);
 
-        if (Application.Current.MainWindow is { } win)
-            win.Background = new SolidColorBrush(palette["WindowBg"]);
-    }
-
-    private static void Set(ResourceDictionary res, string key, Color color)
-    {
-        // 必须替换整个对象，DynamicResource 才能感知变化
-        res[key] = new SolidColorBrush(color);
+        win.Background = new SolidColorBrush(palette["WindowBg"]);
     }
 
     private static Color C(byte r, byte g, byte b) => Color.FromRgb(r, g, b);
