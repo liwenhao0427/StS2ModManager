@@ -227,6 +227,7 @@ public class GithubModSyncService
             {
                 summary.Updated++;
                 record.CurrentVersion = result.Version;
+                record.LastReleasePublishedAt = result.PublishedAt;
                 record.DetailUrl = result.DetailUrl;
                 record.DownloadUrl = result.DownloadUrl;
                 record.AuthorUrl = result.AuthorUrl;
@@ -269,9 +270,12 @@ public class GithubModSyncService
             {
                 return SingleSyncResult.Fail(release.ErrorMessage);
             }
-            LogInfo($"[{record.FolderName}] 获取Release成功，tag={release.Tag}, 资产数={release.AssetUrls.Count}");
+            LogInfo($"[{record.FolderName}] 获取Release成功，tag={release.Tag}, published_at={release.PublishedAt}, 资产数={release.AssetUrls.Count}");
 
-            if (string.Equals(record.CurrentVersion, release.Tag, StringComparison.OrdinalIgnoreCase))
+            var tagMatch = string.Equals(record.CurrentVersion, release.Tag, StringComparison.OrdinalIgnoreCase);
+            var publishedAtMatch = !string.IsNullOrWhiteSpace(record.LastReleasePublishedAt)
+                && string.Equals(record.LastReleasePublishedAt, release.PublishedAt, StringComparison.OrdinalIgnoreCase);
+            if (tagMatch && publishedAtMatch)
             {
                 return SingleSyncResult.Latest();
             }
@@ -378,7 +382,8 @@ public class GithubModSyncService
                 release.ReleaseUrl,
                 mergedMeta.DownloadUrl,
                 mergedMeta.AuthorUrl,
-                newFolderName);
+                newFolderName,
+                release.PublishedAt);
         }
         catch (Exception ex)
         {
@@ -723,7 +728,9 @@ public class GithubModSyncService
                 return ReleaseInfoResult.Fail("未获取到release版本号");
             }
 
-            return ReleaseInfoResult.Ok(tag, body, htmlUrl, assets);
+            var publishedAt = root.TryGetProperty("published_at", out var pubNode) ? pubNode.GetString() ?? string.Empty : string.Empty;
+
+            return ReleaseInfoResult.Ok(tag, body, htmlUrl, assets, publishedAt);
         }
         catch (Exception ex)
         {
@@ -821,9 +828,10 @@ public class GithubModSyncService
         public string Tag { get; private set; } = string.Empty;
         public string Body { get; private set; } = string.Empty;
         public string ReleaseUrl { get; private set; } = string.Empty;
+        public string PublishedAt { get; private set; } = string.Empty;
         public List<string> AssetUrls { get; private set; } = new();
 
-        public static ReleaseInfoResult Ok(string tag, string body, string releaseUrl, List<string> assetUrls)
+        public static ReleaseInfoResult Ok(string tag, string body, string releaseUrl, List<string> assetUrls, string publishedAt)
         {
             return new ReleaseInfoResult
             {
@@ -831,7 +839,8 @@ public class GithubModSyncService
                 Tag = tag,
                 Body = body ?? string.Empty,
                 ReleaseUrl = releaseUrl ?? string.Empty,
-                AssetUrls = assetUrls
+                AssetUrls = assetUrls,
+                PublishedAt = publishedAt ?? string.Empty
             };
         }
 
@@ -855,9 +864,10 @@ public class GithubModSyncService
         public string DownloadUrl { get; private set; } = string.Empty;
         public string AuthorUrl { get; private set; } = string.Empty;
         public string NewFolderName { get; private set; } = string.Empty;
+        public string PublishedAt { get; private set; } = string.Empty;
         public string ErrorMessage { get; private set; } = string.Empty;
 
-        public static SingleSyncResult Ok(string version, string description, string detailUrl, string downloadUrl, string authorUrl, string newFolderName)
+        public static SingleSyncResult Ok(string version, string description, string detailUrl, string downloadUrl, string authorUrl, string newFolderName, string publishedAt)
         {
             return new SingleSyncResult
             {
@@ -867,7 +877,8 @@ public class GithubModSyncService
                 DetailUrl = detailUrl ?? string.Empty,
                 DownloadUrl = downloadUrl ?? string.Empty,
                 AuthorUrl = authorUrl ?? string.Empty,
-                NewFolderName = newFolderName
+                NewFolderName = newFolderName,
+                PublishedAt = publishedAt ?? string.Empty
             };
         }
 

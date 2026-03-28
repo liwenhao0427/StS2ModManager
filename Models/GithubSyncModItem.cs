@@ -15,5 +15,6 @@ public class GithubSyncModItem
     public string DownloadUrl { get; set; } = string.Empty;
     public string AuthorUrl { get; set; } = string.Empty;
     public string LastSyncAt { get; set; } = string.Empty;
+    public string LastReleasePublishedAt { get; set; } = string.Empty;
     public string LastError { get; set; } = string.Empty;
 }
