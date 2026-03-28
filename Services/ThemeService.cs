@@ -123,7 +123,6 @@ public static class ThemeService
     {
         var palette = dark ? Dark : Light;
 
-        // 资源定义在 Window.Resources 里，必须修改同一个字典才能让 DynamicResource 生效
         var win = Application.Current.MainWindow;
         if (win == null) return;
 
@@ -132,6 +131,26 @@ public static class ThemeService
             res[key] = new SolidColorBrush(color);
 
         win.Background = new SolidColorBrush(palette["WindowBg"]);
+
+        // 覆盖 WPF 系统颜色键，影响 ComboBox/ListBox/CheckBox 等控件内部模板
+        var textBrush   = new SolidColorBrush(palette["TextFg"]);
+        var inputBg     = new SolidColorBrush(palette["InputBg"]);
+        var inputFg     = new SolidColorBrush(palette["InputFg"]);
+        var highlightBg = new SolidColorBrush(dark ? C(0x2A, 0x50, 0x80) : C(0x33, 0x99, 0xFF));
+        var highlightFg = new SolidColorBrush(Colors.White);
+
+        // ComboBox 下拉弹出层背景和文字
+        res[SystemColors.WindowBrushKey]          = inputBg;
+        res[SystemColors.WindowTextBrushKey]       = inputFg;
+        // 通用控件文字
+        res[SystemColors.ControlTextBrushKey]      = textBrush;
+        // ComboBox/ListBox 选中项
+        res[SystemColors.HighlightBrushKey]        = highlightBg;
+        res[SystemColors.HighlightTextBrushKey]    = highlightFg;
+        res[SystemColors.InactiveSelectionHighlightBrushKey]     = highlightBg;
+        res[SystemColors.InactiveSelectionHighlightTextBrushKey] = highlightFg;
+        // 控件背景
+        res[SystemColors.ControlBrushKey]          = inputBg;
     }
 
     private static Color C(byte r, byte g, byte b) => Color.FromRgb(r, g, b);
