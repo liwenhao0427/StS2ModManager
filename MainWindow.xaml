@@ -71,6 +71,8 @@
         <SolidColorBrush x:Key="TreeSelectedBg"   Color="#E5F0FA"/>
         <SolidColorBrush x:Key="TreeIndentLine"   Color="#DCE6F1"/>
         <SolidColorBrush x:Key="AliasFg"          Color="#7890A6"/>
+        <SolidColorBrush x:Key="TreeChevronFg"    Color="#55728C"/>
+        <SolidColorBrush x:Key="TreeChevronHover" Color="#E7F0F9"/>
         <SolidColorBrush x:Key="DonateBg"     Color="#FFF8EC"/>
         <SolidColorBrush x:Key="DonateFg"     Color="#8A6A2A"/>
         <SolidColorBrush x:Key="DonateBorder" Color="#E8D5A0"/>
@@ -221,13 +223,51 @@
                             <ToggleButton x:Name="Expander"
                                           Grid.Row="0"
                                           Grid.Column="0"
-                                          Width="18"
-                                          Height="18"
-                                          Margin="0,6,6,0"
+                                          Width="16"
+                                          Height="16"
+                                          Margin="0,5,6,0"
                                           IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}"
                                           Background="Transparent"
-                                          BorderBrush="Transparent">
-                                <TextBlock Text="▾" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource MutedFg}"/>
+                                          BorderBrush="Transparent"
+                                          Padding="0">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="ToggleButton">
+                                        <Border x:Name="ChevronHost"
+                                                Width="16"
+                                                Height="16"
+                                                Background="Transparent"
+                                                CornerRadius="8">
+                                            <Path x:Name="Chevron"
+                                                  Width="7"
+                                                  Height="7"
+                                                  Stretch="Uniform"
+                                                  Stroke="{DynamicResource TreeChevronFg}"
+                                                  StrokeThickness="1.6"
+                                                  StrokeStartLineCap="Round"
+                                                  StrokeEndLineCap="Round"
+                                                  StrokeLineJoin="Round"
+                                                  HorizontalAlignment="Center"
+                                                  VerticalAlignment="Center"
+                                                  Data="M 2 1 L 5 4 L 2 7">
+                                                <Path.RenderTransform>
+                                                    <RotateTransform Angle="90" CenterX="3.5" CenterY="4"/>
+                                                </Path.RenderTransform>
+                                            </Path>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsChecked" Value="False">
+                                                <Setter TargetName="Chevron" Property="RenderTransform">
+                                                    <Setter.Value>
+                                                        <RotateTransform Angle="0" CenterX="3.5" CenterY="4"/>
+                                                    </Setter.Value>
+                                                </Setter>
+                                            </Trigger>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="ChevronHost" Property="Background" Value="{DynamicResource TreeChevronHover}"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
                             </ToggleButton>
                             <Border x:Name="ItemBorder"
                                     Grid.Row="0"
@@ -482,17 +522,22 @@
                                                                VerticalAlignment="Center"
                                                                Visibility="{Binding ShowSecondaryText, Converter={StaticResource BoolToVisibilityConverter}}"/>
                                                 </StackPanel>
-                                                <Border Grid.Column="1"
-                                                        Grid.Row="1"
-                                                        Margin="0,2,0,0"
-                                                        Padding="6,1"
-                                                        Background="{DynamicResource ModPathBg}"
-                                                        BorderBrush="{DynamicResource ModPathBorder}"
-                                                        BorderThickness="1"
-                                                        CornerRadius="4"
-                                                        Visibility="{Binding ShowSubtitleBadge, Converter={StaticResource BoolToVisibilityConverter}}">
-                                                    <TextBlock Text="{Binding Subtitle}" FontSize="10" Foreground="{DynamicResource ModPathFg}" TextTrimming="CharacterEllipsis"/>
-                                                </Border>
+                                                <StackPanel Grid.Column="1" Grid.Row="1" Orientation="Horizontal" Margin="0,1,0,0">
+                                                    <TextBlock Text="{Binding Mod.AuthorDisplay}"
+                                                               FontSize="10"
+                                                               Foreground="{DynamicResource MutedFg}"
+                                                               TextTrimming="CharacterEllipsis"
+                                                               Visibility="{Binding IsModNode, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                                                    <Border Margin="8,0,0,0"
+                                                            Padding="6,1"
+                                                            Background="{DynamicResource ModPathBg}"
+                                                            BorderBrush="{DynamicResource ModPathBorder}"
+                                                            BorderThickness="1"
+                                                            CornerRadius="4"
+                                                            Visibility="{Binding ShowSubtitleBadge, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                        <TextBlock Text="{Binding Subtitle}" FontSize="10" Foreground="{DynamicResource ModPathFg}" TextTrimming="CharacterEllipsis"/>
+                                                    </Border>
+                                                </StackPanel>
                                                 <StackPanel Grid.Column="2" Grid.RowSpan="2" Margin="8,0,0,0" HorizontalAlignment="Right" VerticalAlignment="Center">
                                                     <Border Padding="6,1"
                                                             Background="{DynamicResource ModTagBg}"
@@ -503,18 +548,12 @@
                                                             Visibility="{Binding IsModNode, Converter={StaticResource BoolToVisibilityConverter}}">
                                                         <TextBlock Text="{Binding Mod.Tag}" FontSize="10" Foreground="{DynamicResource ModTagFg}" TextAlignment="Right"/>
                                                     </Border>
-                                                    <TextBlock Text="{Binding Mod.AuthorDisplay}"
-                                                               FontSize="10"
-                                                               Foreground="{DynamicResource MutedFg}"
-                                                               TextAlignment="Right"
-                                                               TextTrimming="CharacterEllipsis"
-                                                               Visibility="{Binding IsModNode, Converter={StaticResource BoolToVisibilityConverter}}"/>
                                                     <Button Content="{Binding DataContext.Loc[Common.Open], RelativeSource={RelativeSource AncestorType=Window}}"
                                                             Command="{Binding DataContext.OpenModFolderCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                             CommandParameter="{Binding Mod}"
                                                             Padding="7,1"
                                                             Width="62"
-                                                            Margin="0,4,0,0"
+                                                            Margin="0,3,0,0"
                                                             HorizontalAlignment="Right"
                                                             Visibility="{Binding IsModNode, Converter={StaticResource BoolToVisibilityConverter}}"/>
                                                 </StackPanel>
