@@ -35,6 +35,36 @@ public class ModService
         _settingsService.Save(_settings);
     }
 
+    public string GetModAlias(string modKey)
+    {
+        if (string.IsNullOrWhiteSpace(modKey))
+        {
+            return string.Empty;
+        }
+
+        return _settings.ModAliases.TryGetValue(modKey, out var alias)
+            ? alias?.Trim() ?? string.Empty
+            : string.Empty;
+    }
+
+    public void SetModAlias(string modKey, string alias, string originalName)
+    {
+        if (string.IsNullOrWhiteSpace(modKey))
+        {
+            return;
+        }
+
+        var normalizedAlias = alias?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(normalizedAlias)
+            || string.Equals(normalizedAlias, originalName?.Trim(), StringComparison.OrdinalIgnoreCase))
+        {
+            _settings.ModAliases.Remove(modKey);
+            return;
+        }
+
+        _settings.ModAliases[modKey] = normalizedAlias;
+    }
+
     public List<ModSourceInfo> BuildModSources(string? gamePath)
     {
         var sources = new List<ModSourceInfo>
@@ -281,7 +311,8 @@ public class ModService
             var modBaseName = ResolveModBaseName(mod.FolderPath, mod.FolderName);
             var sameNameMetaFile = Path.Combine(mod.FolderPath, $"{modBaseName}.json");
 
-            mod.DisplayName = string.IsNullOrWhiteSpace(normalizedMeta.Name) ? mod.FolderName : normalizedMeta.Name;
+            mod.OriginalName = string.IsNullOrWhiteSpace(normalizedMeta.Name) ? mod.FolderName : normalizedMeta.Name;
+            mod.DisplayName = mod.OriginalName;
             mod.Tag = normalizedMeta.Tag;
             mod.Author = normalizedMeta.Author;
             mod.Version = normalizedMeta.Version;
@@ -943,6 +974,8 @@ public class ModService
             var size = CalculateDirectorySize(folder);
             var modKey = $"{source.Path}|{folderName}";
             var meta = LoadModMeta(folder, folderName, hasPck, hasDll);
+            var originalName = string.IsNullOrWhiteSpace(meta.Name) ? folderName : meta.Name;
+            var aliasName = GetModAlias(modKey);
             mods.Add(new ModInfo
             {
                 ModKey = modKey,
@@ -951,7 +984,9 @@ public class ModService
                 MetadataFilePath = metadataFilePath,
                 SourcePath = source.Path,
                 SourceName = source.Name,
-                DisplayName = string.IsNullOrWhiteSpace(meta.Name) ? folderName : meta.Name,
+                OriginalName = originalName,
+                AliasName = aliasName,
+                DisplayName = originalName,
                 Tag = meta.Tag,
                 Author = meta.Author,
                 Version = meta.Version,

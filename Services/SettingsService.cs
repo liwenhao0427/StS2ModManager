@@ -35,6 +35,10 @@ public class SettingsService
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
             settings.ModAliases ??= new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            settings.ModAliases = settings.ModAliases
+                .Where(x => !string.IsNullOrWhiteSpace(x.Key))
+                .Where(x => !string.IsNullOrWhiteSpace(x.Value))
+                .ToDictionary(x => x.Key.Trim(), x => x.Value.Trim(), StringComparer.OrdinalIgnoreCase);
             settings.GithubSyncMods ??= new List<GithubSyncModItem>();
             foreach (var item in settings.GithubSyncMods)
             {
@@ -95,6 +99,11 @@ public class SettingsService
                 .Where(Directory.Exists)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
+            settings.ModAliases ??= new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            settings.ModAliases = settings.ModAliases
+                .Where(x => !string.IsNullOrWhiteSpace(x.Key))
+                .Where(x => !string.IsNullOrWhiteSpace(x.Value))
+                .ToDictionary(x => x.Key.Trim(), x => x.Value.Trim(), StringComparer.OrdinalIgnoreCase);
             settings.GithubSyncMods ??= new List<GithubSyncModItem>();
             foreach (var item in settings.GithubSyncMods)
             {

@@ -49,6 +49,12 @@ public partial class ModInfo : ObservableObject
     private string _displayName = string.Empty;
 
     [ObservableProperty]
+    private string _originalName = string.Empty;
+
+    [ObservableProperty]
+    private string _aliasName = string.Empty;
+
+    [ObservableProperty]
     private bool _isEnabled = true;
 
     public string LocationDisplay => SourceName;
@@ -62,6 +68,12 @@ public partial class ModInfo : ObservableObject
     public string RelativeFolderPath => string.IsNullOrWhiteSpace(SourcePath) || string.IsNullOrWhiteSpace(FolderPath)
         ? FolderName
         : Path.GetRelativePath(SourcePath, FolderPath);
+
+    public string SecondaryDisplayName => string.IsNullOrWhiteSpace(AliasName) || string.Equals(DisplayName, AliasName, StringComparison.OrdinalIgnoreCase)
+        ? string.Empty
+        : AliasName;
+
+    public bool HasSecondaryDisplayName => !string.IsNullOrWhiteSpace(SecondaryDisplayName);
 
     public string SizeDisplay => Size switch
     {

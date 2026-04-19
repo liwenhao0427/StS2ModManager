@@ -97,6 +97,9 @@ public partial class MainViewModel : ObservableObject
     private string _manualBackupName = string.Empty;
 
     [ObservableProperty]
+    private string _modOriginalNameInput = string.Empty;
+
+    [ObservableProperty]
     private string _modNameInput = string.Empty;
 
     [ObservableProperty]
@@ -366,6 +369,7 @@ public partial class MainViewModel : ObservableObject
     {
         if (string.IsNullOrWhiteSpace(value))
         {
+            ModOriginalNameInput = string.Empty;
             ModNameInput = string.Empty;
             ModIdInput = string.Empty;
             ModTagInput = string.Empty;
@@ -855,10 +859,13 @@ public partial class MainViewModel : ObservableObject
             descriptionValue = detailValue;
         }
 
+        var originalName = ModOriginalNameInput?.Trim() ?? string.Empty;
+        _modService.SetModAlias(SelectedModForDetail?.ModKey ?? string.Empty, ModNameInput, originalName);
+
         var success = _modService.SaveModMetaByPath(SelectedModFolderPath, SelectedModFolderName, new ModMetaInfo
         {
             Id = ModIdInput,
-            Name = ModNameInput,
+            Name = originalName,
             Tag = ModTagInput,
             Version = ModVersionInput,
             Detail = detailValue,
@@ -900,6 +907,7 @@ public partial class MainViewModel : ObservableObject
             : string.Empty;
 
         var displayName = string.IsNullOrWhiteSpace(meta.Name) ? folderName : meta.Name;
+        var aliasName = _modService.GetModAlias(SelectedModForDetail?.ModKey ?? string.Empty);
         var relatedMods = ToolMods
             .Where(x => string.Equals(x.FolderPath, path, StringComparison.OrdinalIgnoreCase))
             .Concat(GameMods.Where(x => string.Equals(x.FolderPath, path, StringComparison.OrdinalIgnoreCase)))
@@ -908,6 +916,8 @@ public partial class MainViewModel : ObservableObject
 
         foreach (var item in relatedMods)
         {
+            item.OriginalName = displayName;
+            item.AliasName = aliasName;
             item.DisplayName = displayName;
             item.Tag = ModTagInput;
             item.Version = meta.Version ?? string.Empty;
@@ -933,20 +943,14 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void RenameSelectedModToFolderName()
     {
-        if (string.IsNullOrWhiteSpace(SelectedModFolderPath))
+        if (SelectedModForDetail == null || string.IsNullOrWhiteSpace(SelectedModFolderPath))
         {
             MessageBox.Show(L("Msg.SelectModFirst"), L("Dialog.Title.Tip"), MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
 
-        var meta = _modService.LoadModMetaByPath(SelectedModFolderPath, SelectedModFolderName);
-        meta.Name = SelectedModFolderName;
-        if (!_modService.SaveModMetaByPath(SelectedModFolderPath, SelectedModFolderName, meta))
-        {
-            MessageBox.Show(L("Msg.ModMetaSaveFailed"), L("Dialog.Title.Error"), MessageBoxButton.OK, MessageBoxImage.Error);
-            return;
-        }
-
+        _modService.SetModAlias(SelectedModForDetail.ModKey, SelectedModFolderName, ModOriginalNameInput);
+        _modService.SaveSettings();
         ReloadModMetaAndViews();
         StatusMessage = L("Status.ModNameUpdatedByFolder");
     }
@@ -997,14 +1001,11 @@ public partial class MainViewModel : ObservableObject
         var successCount = 0;
         foreach (var mod in ToolMods.Where(x => selectedSourcePaths.Contains(x.SourcePath)))
         {
-            var meta = _modService.LoadModMetaByPath(mod.FolderPath, mod.FolderName);
-            meta.Name = mod.FolderName;
-            if (_modService.SaveModMetaByPath(mod.FolderPath, mod.FolderName, meta))
-            {
-                successCount++;
-            }
+            _modService.SetModAlias(mod.ModKey, mod.FolderName, mod.OriginalName);
+            successCount++;
         }
 
+        _modService.SaveSettings();
         RefreshToolMods();
         RefreshGameMods();
         StatusMessage = F("Status.ModNameBatchUpdatedByFolder", successCount);
@@ -1018,8 +1019,9 @@ public partial class MainViewModel : ObservableObject
 
     private void ApplyMetaToUiInputs(ModMetaInfo meta, string folderName)
     {
+        ModOriginalNameInput = string.IsNullOrWhiteSpace(meta.Name) ? folderName : meta.Name;
         ModIdInput = string.IsNullOrWhiteSpace(meta.Id) ? folderName : meta.Id;
-        ModNameInput = string.IsNullOrWhiteSpace(meta.Name) ? folderName : meta.Name;
+        ModNameInput = _modService.GetModAlias(SelectedModForDetail?.ModKey ?? string.Empty);
         SetModTags(ParseTags(meta.Tag));
         NewTagInput = string.Empty;
         ModVersionInput = meta.Version ?? string.Empty;
@@ -1954,6 +1956,8 @@ public partial class MainViewModel : ObservableObject
         if (!string.IsNullOrWhiteSpace(keyword))
         {
             var hit = ContainsText(mod.DisplayName, keyword)
+                      || ContainsText(mod.OriginalName, keyword)
+                      || ContainsText(mod.AliasName, keyword)
                       || ContainsText(mod.FolderName, keyword)
                       || ContainsText(mod.Author, keyword)
                       || ContainsText(mod.Detail, keyword)
@@ -2211,6 +2215,7 @@ public partial class MainViewModel : ObservableObject
                 NodeKey = first.SourcePath,
                 ShowSubtitleBadge = true,
                 ShowInlineSubtitle = false,
+                ShowSecondaryText = false,
                 IsExpanded = true
             };
 
@@ -2264,10 +2269,11 @@ public partial class MainViewModel : ObservableObject
         return new ModTreeNode
         {
             Title = mod.DisplayName,
-            Subtitle = mod.AuthorDisplay,
+            Subtitle = mod.SecondaryDisplayName,
             NodeKey = mod.ModKey,
             Mod = mod,
-            ShowInlineSubtitle = true,
+            ShowInlineSubtitle = false,
+            ShowSecondaryText = mod.HasSecondaryDisplayName,
             IsExpanded = false
         };
     }

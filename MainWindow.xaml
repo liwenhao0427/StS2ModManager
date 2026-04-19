@@ -67,6 +67,10 @@
         <SolidColorBrush x:Key="TagRemoveBg"      Color="#E7EEF6"/>
         <SolidColorBrush x:Key="TagRemoveBorder"  Color="#BFD2E6"/>
         <SolidColorBrush x:Key="TagRemoveFg"      Color="#36536D"/>
+        <SolidColorBrush x:Key="TreeHoverBg"      Color="#F1F6FB"/>
+        <SolidColorBrush x:Key="TreeSelectedBg"   Color="#E5F0FA"/>
+        <SolidColorBrush x:Key="TreeIndentLine"   Color="#DCE6F1"/>
+        <SolidColorBrush x:Key="AliasFg"          Color="#7890A6"/>
         <SolidColorBrush x:Key="DonateBg"     Color="#FFF8EC"/>
         <SolidColorBrush x:Key="DonateFg"     Color="#8A6A2A"/>
         <SolidColorBrush x:Key="DonateBorder" Color="#E8D5A0"/>
@@ -196,6 +200,59 @@
             <Setter Property="Background" Value="{DynamicResource ListBg}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource ListBorder}"/>
             <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+
+        <Style x:Key="ModTreeItemStyle" TargetType="TreeViewItem">
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Margin" Value="0,1,0,1"/>
+            <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TreeViewItem">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <ToggleButton x:Name="Expander"
+                                          Grid.Row="0"
+                                          Grid.Column="0"
+                                          Width="18"
+                                          Height="18"
+                                          Margin="0,6,6,0"
+                                          IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}"
+                                          Background="Transparent"
+                                          BorderBrush="Transparent">
+                                <TextBlock Text="▾" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource MutedFg}"/>
+                            </ToggleButton>
+                            <Border x:Name="ItemBorder"
+                                    Grid.Row="0"
+                                    Grid.Column="1"
+                                    Background="Transparent"
+                                    CornerRadius="8"
+                                    Padding="6,4">
+                                <ContentPresenter/>
+                            </Border>
+                            <ItemsPresenter x:Name="ItemsHost" Grid.Row="1" Grid.Column="1" Margin="16,2,0,0"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="HasItems" Value="False">
+                                <Setter TargetName="Expander" Property="Visibility" Value="Hidden"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ItemBorder" Property="Background" Value="{DynamicResource TreeHoverBg}"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="ItemBorder" Property="Background" Value="{DynamicResource TreeSelectedBg}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
     </Window.Resources>
 
@@ -390,13 +447,11 @@
                                           ScrollViewer.VerticalScrollBarVisibility="Visible"
                                           ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                                     <TreeView.ItemContainerStyle>
-                                        <Style TargetType="TreeViewItem">
-                                            <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
-                                        </Style>
+                                        <StaticResource ResourceKey="ModTreeItemStyle"/>
                                     </TreeView.ItemContainerStyle>
                                     <TreeView.Resources>
                                         <HierarchicalDataTemplate DataType="{x:Type models:ModTreeNode}" ItemsSource="{Binding Children}">
-                                            <Grid Margin="2,3">
+                                            <Grid Margin="0,1">
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="Auto"/>
                                                     <ColumnDefinition Width="*"/>
@@ -405,17 +460,18 @@
                                                 <Grid.RowDefinitions>
                                                     <RowDefinition Height="Auto"/>
                                                     <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
                                                 </Grid.RowDefinitions>
 
                                                 <CheckBox Grid.Column="0"
-                                                          Grid.RowSpan="2"
+                                                          Grid.RowSpan="3"
                                                           IsChecked="{Binding Mod.IsEnabled, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                          Margin="0,0,8,0"
+                                                          Margin="0,2,10,0"
                                                           Visibility="{Binding IsModNode, Converter={StaticResource BoolToVisibilityConverter}}"
                                                           Command="{Binding DataContext.ToggleToolModCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                           CommandParameter="{Binding Mod}"/>
-                                                <StackPanel Grid.Column="1" Grid.Row="0" Orientation="Horizontal">
-                                                    <TextBlock Text="{Binding Title}" FontWeight="Bold" Foreground="{DynamicResource TitleBrush}" TextTrimming="CharacterEllipsis"/>
+                                                <StackPanel Grid.Column="1" Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="13" Foreground="{DynamicResource TitleBrush}" TextTrimming="CharacterEllipsis"/>
                                                     <TextBlock Text="  " Visibility="{Binding ShowInlineSubtitle, Converter={StaticResource BoolToVisibilityConverter}}"/>
                                                     <TextBlock Text="{Binding Subtitle}"
                                                                FontSize="11"
@@ -423,8 +479,16 @@
                                                                TextTrimming="CharacterEllipsis"
                                                                Visibility="{Binding ShowInlineSubtitle, Converter={StaticResource BoolToVisibilityConverter}}"/>
                                                 </StackPanel>
+                                                <TextBlock Grid.Column="1"
+                                                           Grid.Row="1"
+                                                           Margin="0,3,0,0"
+                                                           Text="{Binding Subtitle}"
+                                                           FontSize="11"
+                                                           Foreground="{DynamicResource AliasFg}"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           Visibility="{Binding ShowSecondaryText, Converter={StaticResource BoolToVisibilityConverter}}"/>
                                                 <Border Grid.Column="1"
-                                                        Grid.Row="1"
+                                                        Grid.Row="2"
                                                         Margin="0,3,0,0"
                                                         Padding="6,2"
                                                         Background="{DynamicResource ModPathBg}"
@@ -434,7 +498,7 @@
                                                         Visibility="{Binding ShowSubtitleBadge, Converter={StaticResource BoolToVisibilityConverter}}">
                                                     <TextBlock Text="{Binding Subtitle}" FontSize="10" Foreground="{DynamicResource ModPathFg}" TextTrimming="CharacterEllipsis"/>
                                                 </Border>
-                                                <StackPanel Grid.Column="2" Grid.RowSpan="2" Margin="10,0,0,0" HorizontalAlignment="Right">
+                                                <StackPanel Grid.Column="2" Grid.RowSpan="3" Margin="10,0,0,0" HorizontalAlignment="Right">
                                                     <Border Padding="6,1"
                                                             Background="{DynamicResource ModTagBg}"
                                                             BorderBrush="{DynamicResource ModTagBorder}"
@@ -444,12 +508,19 @@
                                                             Visibility="{Binding IsModNode, Converter={StaticResource BoolToVisibilityConverter}}">
                                                         <TextBlock Text="{Binding Mod.Tag}" FontSize="10" Foreground="{DynamicResource ModTagFg}" TextAlignment="Right"/>
                                                     </Border>
+                                                    <TextBlock Text="{Binding Mod.AuthorDisplay}"
+                                                               Margin="0,5,0,0"
+                                                               FontSize="10"
+                                                               Foreground="{DynamicResource MutedFg}"
+                                                               TextAlignment="Right"
+                                                               TextTrimming="CharacterEllipsis"
+                                                               Visibility="{Binding IsModNode, Converter={StaticResource BoolToVisibilityConverter}}"/>
                                                     <Button Content="{Binding DataContext.Loc[Common.Open], RelativeSource={RelativeSource AncestorType=Window}}"
                                                             Command="{Binding DataContext.OpenModFolderCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                             CommandParameter="{Binding Mod}"
                                                             Padding="8,2"
                                                             Width="62"
-                                                            Margin="0,6,0,0"
+                                                            Margin="0,8,0,0"
                                                             HorizontalAlignment="Right"
                                                             Visibility="{Binding IsModNode, Converter={StaticResource BoolToVisibilityConverter}}"/>
                                                 </StackPanel>
@@ -505,6 +576,7 @@
                                      <RowDefinition Height="Auto"/>
                                      <RowDefinition Height="Auto"/>
                                      <RowDefinition Height="Auto"/>
+                                     <RowDefinition Height="Auto"/>
                                  </Grid.RowDefinitions>
                                  <Grid.ColumnDefinitions>
                                      <ColumnDefinition Width="74"/>
@@ -512,23 +584,33 @@
                                  </Grid.ColumnDefinitions>
 
                                  <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding Loc[Field.Name]}" HorizontalAlignment="Right" Margin="0,0,8,6" VerticalAlignment="Center"/>
-                                 <Grid Grid.Row="0" Grid.Column="1" Margin="0,0,0,6">
-                                     <Grid.ColumnDefinitions>
-                                         <ColumnDefinition Width="*"/>
-                                         <ColumnDefinition Width="Auto"/>
-                                     </Grid.ColumnDefinitions>
-                                     <TextBox Grid.Column="0"
-                                              Style="{StaticResource MetaTextBoxAutoSaveStyle}"
-                                              Text="{Binding ModNameInput, UpdateSourceTrigger=LostFocus}"/>
-                                     <Button Grid.Column="1"
-                                             Margin="8,0,0,0"
-                                             Padding="10,4"
-                                             Content="{Binding Loc[Mods.RenameByFolder]}"
-                                             Command="{Binding RenameSelectedModToFolderNameCommand}"/>
-                                 </Grid>
+                                 <TextBox Grid.Row="0"
+                                          Grid.Column="1"
+                                          Margin="0,0,0,6"
+                                          Text="{Binding ModOriginalNameInput}"
+                                          IsReadOnly="True"/>
 
-                                 <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding Loc[Field.Tag]}" HorizontalAlignment="Right" Margin="0,0,8,6" VerticalAlignment="Top"/>
+                                 <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding Loc[Field.Alias]}" HorizontalAlignment="Right" Margin="0,0,8,6" VerticalAlignment="Center"/>
                                  <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,0,0,6">
+                                     <Grid>
+                                         <Grid.ColumnDefinitions>
+                                             <ColumnDefinition Width="*"/>
+                                             <ColumnDefinition Width="Auto"/>
+                                         </Grid.ColumnDefinitions>
+                                         <TextBox Grid.Column="0"
+                                                  Style="{StaticResource MetaTextBoxAutoSaveStyle}"
+                                                  Text="{Binding ModNameInput, UpdateSourceTrigger=LostFocus}"/>
+                                         <Button Grid.Column="1"
+                                                 Margin="8,0,0,0"
+                                                 Padding="10,4"
+                                                 Content="{Binding Loc[Mods.RenameByFolder]}"
+                                                 Command="{Binding RenameSelectedModToFolderNameCommand}"/>
+                                     </Grid>
+                                     <TextBlock Text="{Binding Loc[Field.AliasHint]}" Margin="0,4,0,0" FontSize="10" Foreground="{DynamicResource HintFg}" TextWrapping="Wrap"/>
+                                 </StackPanel>
+
+                                 <TextBlock Grid.Row="2" Grid.Column="0" Text="{Binding Loc[Field.Tag]}" HorizontalAlignment="Right" Margin="0,0,8,6" VerticalAlignment="Top"/>
+                                 <StackPanel Grid.Row="2" Grid.Column="1" Margin="0,0,0,6">
                                      <Border Background="{DynamicResource TagAreaBg}" BorderBrush="{DynamicResource TagAreaBorder}" BorderThickness="1" CornerRadius="8" Padding="8,8,8,6">
                                          <ItemsControl ItemsSource="{Binding ModTags}">
                                              <ItemsControl.ItemsPanel>
@@ -575,8 +657,8 @@
                                      <TextBlock Text="{Binding Loc[Field.TagHint]}" Margin="0,4,0,0" FontSize="10" Foreground="{DynamicResource HintFg}"/>
                                  </StackPanel>
 
-                                 <TextBlock Grid.Row="2" Grid.Column="0" Text="{Binding Loc[Field.Description]}" HorizontalAlignment="Right" Margin="0,0,8,6" VerticalAlignment="Top"/>
-                                 <TextBox Grid.Row="2" Grid.Column="1"
+                                 <TextBlock Grid.Row="3" Grid.Column="0" Text="{Binding Loc[Field.Description]}" HorizontalAlignment="Right" Margin="0,0,8,6" VerticalAlignment="Top"/>
+                                 <TextBox Grid.Row="3" Grid.Column="1"
                                           Margin="0,0,0,6"
                                           Style="{StaticResource MetaTextBoxAutoSaveStyle}"
                                           Text="{Binding ModDescriptionInput, UpdateSourceTrigger=LostFocus}"
@@ -585,11 +667,11 @@
                                           VerticalScrollBarVisibility="Auto"
                                           Height="72"/>
 
-                                 <TextBlock Grid.Row="3" Grid.Column="0" Text="{Binding Loc[Field.Author]}" HorizontalAlignment="Right" Margin="0,0,8,6" VerticalAlignment="Center"/>
-                                 <TextBox Grid.Row="3" Grid.Column="1" Margin="0,0,0,6" Style="{StaticResource MetaTextBoxAutoSaveStyle}" Text="{Binding ModAuthorInput, UpdateSourceTrigger=LostFocus}"/>
+                                 <TextBlock Grid.Row="4" Grid.Column="0" Text="{Binding Loc[Field.Author]}" HorizontalAlignment="Right" Margin="0,0,8,6" VerticalAlignment="Center"/>
+                                 <TextBox Grid.Row="4" Grid.Column="1" Margin="0,0,0,6" Style="{StaticResource MetaTextBoxAutoSaveStyle}" Text="{Binding ModAuthorInput, UpdateSourceTrigger=LostFocus}"/>
 
-                                  <TextBlock Grid.Row="4" Grid.Column="0" Text="{Binding Loc[Field.DownloadUrl]}" HorizontalAlignment="Right" Margin="0,0,8,6" VerticalAlignment="Center"/>
-                                  <Grid Grid.Row="4" Grid.Column="1" Margin="0,0,0,6">
+                                  <TextBlock Grid.Row="5" Grid.Column="0" Text="{Binding Loc[Field.DownloadUrl]}" HorizontalAlignment="Right" Margin="0,0,8,6" VerticalAlignment="Center"/>
+                                  <Grid Grid.Row="5" Grid.Column="1" Margin="0,0,0,6">
                                       <Grid.ColumnDefinitions>
                                           <ColumnDefinition Width="*"/>
                                           <ColumnDefinition Width="Auto"/>
@@ -603,8 +685,8 @@
                                               CommandParameter="{Binding ModDownloadUrlInput}"/>
                                   </Grid>
 
-                                 <TextBlock Grid.Row="5" Grid.Column="0" Text="{Binding Loc[Field.Remark]}" HorizontalAlignment="Right" Margin="0,0,8,0" VerticalAlignment="Top"/>
-                                 <TextBox Grid.Row="5" Grid.Column="1" Style="{StaticResource MetaTextBoxAutoSaveStyle}" Text="{Binding ModRemarkInput, UpdateSourceTrigger=LostFocus}" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Height="72"/>
+                                 <TextBlock Grid.Row="6" Grid.Column="0" Text="{Binding Loc[Field.Remark]}" HorizontalAlignment="Right" Margin="0,0,8,0" VerticalAlignment="Top"/>
+                                 <TextBox Grid.Row="6" Grid.Column="1" Style="{StaticResource MetaTextBoxAutoSaveStyle}" Text="{Binding ModRemarkInput, UpdateSourceTrigger=LostFocus}" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Height="72"/>
                               </Grid>
 
                             <Grid Grid.Row="2" Margin="0,8,0,0">

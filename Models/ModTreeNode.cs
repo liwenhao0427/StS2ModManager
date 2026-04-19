@@ -19,6 +19,8 @@ public partial class ModTreeNode : ObservableObject
 
     public bool ShowInlineSubtitle { get; set; }
 
+    public bool ShowSecondaryText { get; set; }
+
     [ObservableProperty]
     private bool _isExpanded = true;
 }
