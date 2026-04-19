@@ -2234,6 +2234,10 @@ public partial class MainViewModel : ObservableObject
 
             foreach (var mod in sourceGroup
                          .OrderByDescending(x => x.IsEnabled)
+                         .ThenByDescending(x => x.RelativeFolderPath.Contains(Path.DirectorySeparatorChar)
+                             || x.RelativeFolderPath.Contains(Path.AltDirectorySeparatorChar))
+                         .ThenByDescending(x => x.RelativeFolderPath.Count(c =>
+                             c == Path.DirectorySeparatorChar || c == Path.AltDirectorySeparatorChar))
                          .ThenBy(x => x.RelativeFolderPath, StringComparer.OrdinalIgnoreCase)
                          .ThenBy(x => x.DisplayName, StringComparer.OrdinalIgnoreCase))
             {
