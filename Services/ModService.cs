@@ -35,34 +35,89 @@ public class ModService
         _settingsService.Save(_settings);
     }
 
-    public string GetModAlias(string modKey)
+    private static string BuildAliasNameKey(string originalName)
     {
-        if (string.IsNullOrWhiteSpace(modKey))
-        {
-            return string.Empty;
-        }
-
-        return _settings.ModAliases.TryGetValue(modKey, out var alias)
-            ? alias?.Trim() ?? string.Empty
-            : string.Empty;
+        return $"name:{originalName.Trim()}";
     }
 
-    public void SetModAlias(string modKey, string alias, string originalName)
+    private static string BuildAliasFolderKey(string folderName)
     {
-        if (string.IsNullOrWhiteSpace(modKey))
+        return $"folder:{folderName.Trim()}";
+    }
+
+    public string GetModAlias(string modKey, string originalName, string folderName)
+    {
+        if (!string.IsNullOrWhiteSpace(modKey)
+            && _settings.ModAliases.TryGetValue(modKey, out var modKeyAlias)
+            && !string.IsNullOrWhiteSpace(modKeyAlias))
         {
-            return;
+            return modKeyAlias.Trim();
         }
 
+        if (!string.IsNullOrWhiteSpace(originalName))
+        {
+            var nameKey = BuildAliasNameKey(originalName);
+            if (_settings.ModAliases.TryGetValue(nameKey, out var nameAlias) && !string.IsNullOrWhiteSpace(nameAlias))
+            {
+                return nameAlias.Trim();
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(folderName))
+        {
+            var folderKey = BuildAliasFolderKey(folderName);
+            if (_settings.ModAliases.TryGetValue(folderKey, out var folderAlias) && !string.IsNullOrWhiteSpace(folderAlias))
+            {
+                return folderAlias.Trim();
+            }
+        }
+
+        return string.Empty;
+    }
+
+    public void SetModAlias(string modKey, string alias, string originalName, string folderName)
+    {
         var normalizedAlias = alias?.Trim() ?? string.Empty;
+        var normalizedOriginalName = originalName?.Trim() ?? string.Empty;
+        var normalizedFolderName = folderName?.Trim() ?? string.Empty;
+        var nameKey = string.IsNullOrWhiteSpace(normalizedOriginalName) ? string.Empty : BuildAliasNameKey(normalizedOriginalName);
+        var folderKey = string.IsNullOrWhiteSpace(normalizedFolderName) ? string.Empty : BuildAliasFolderKey(normalizedFolderName);
+
         if (string.IsNullOrWhiteSpace(normalizedAlias)
-            || string.Equals(normalizedAlias, originalName?.Trim(), StringComparison.OrdinalIgnoreCase))
+            || string.Equals(normalizedAlias, normalizedOriginalName, StringComparison.OrdinalIgnoreCase))
         {
-            _settings.ModAliases.Remove(modKey);
+            if (!string.IsNullOrWhiteSpace(modKey))
+            {
+                _settings.ModAliases.Remove(modKey);
+            }
+
+            if (!string.IsNullOrWhiteSpace(nameKey))
+            {
+                _settings.ModAliases.Remove(nameKey);
+            }
+
+            if (!string.IsNullOrWhiteSpace(folderKey))
+            {
+                _settings.ModAliases.Remove(folderKey);
+            }
+
             return;
         }
 
-        _settings.ModAliases[modKey] = normalizedAlias;
+        if (!string.IsNullOrWhiteSpace(modKey))
+        {
+            _settings.ModAliases[modKey] = normalizedAlias;
+        }
+
+        if (!string.IsNullOrWhiteSpace(nameKey))
+        {
+            _settings.ModAliases[nameKey] = normalizedAlias;
+        }
+
+        if (!string.IsNullOrWhiteSpace(folderKey))
+        {
+            _settings.ModAliases[folderKey] = normalizedAlias;
+        }
     }
 
     public List<ModSourceInfo> BuildModSources(string? gamePath)
@@ -987,7 +1042,7 @@ public class ModService
             var modKey = $"{source.Path}|{folderName}";
             var meta = LoadModMeta(folder, folderName, hasPck, hasDll);
             var originalName = string.IsNullOrWhiteSpace(meta.Name) ? folderName : meta.Name;
-            var aliasName = GetModAlias(modKey);
+            var aliasName = GetModAlias(modKey, originalName, folderName);
             mods.Add(new ModInfo
             {
                 ModKey = modKey,

@@ -463,37 +463,29 @@
                                                 <Grid.RowDefinitions>
                                                     <RowDefinition Height="Auto"/>
                                                     <RowDefinition Height="Auto"/>
-                                                    <RowDefinition Height="Auto"/>
                                                 </Grid.RowDefinitions>
 
                                                 <CheckBox Grid.Column="0"
-                                                          Grid.RowSpan="3"
+                                                          Grid.RowSpan="2"
                                                           IsChecked="{Binding Mod.IsEnabled, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                          Margin="0,2,10,0"
+                                                          Margin="0,0,8,0"
                                                           Visibility="{Binding IsModNode, Converter={StaticResource BoolToVisibilityConverter}}"
                                                           Command="{Binding DataContext.ToggleToolModCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                           CommandParameter="{Binding Mod}"/>
                                                 <StackPanel Grid.Column="1" Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
-                                                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="13" Foreground="{DynamicResource TitleBrush}" TextTrimming="CharacterEllipsis"/>
-                                                    <TextBlock Text="  " Visibility="{Binding ShowInlineSubtitle, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                                                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="13" Foreground="{DynamicResource TitleBrush}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                                    <TextBlock Text="  " Visibility="{Binding ShowSecondaryText, Converter={StaticResource BoolToVisibilityConverter}}"/>
                                                     <TextBlock Text="{Binding Subtitle}"
                                                                FontSize="11"
-                                                               Foreground="{DynamicResource MutedFg}"
+                                                               Foreground="{DynamicResource AliasFg}"
                                                                TextTrimming="CharacterEllipsis"
-                                                               Visibility="{Binding ShowInlineSubtitle, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                                                               VerticalAlignment="Center"
+                                                               Visibility="{Binding ShowSecondaryText, Converter={StaticResource BoolToVisibilityConverter}}"/>
                                                 </StackPanel>
-                                                <TextBlock Grid.Column="1"
-                                                           Grid.Row="1"
-                                                           Margin="0,3,0,0"
-                                                           Text="{Binding Subtitle}"
-                                                           FontSize="11"
-                                                           Foreground="{DynamicResource AliasFg}"
-                                                           TextTrimming="CharacterEllipsis"
-                                                           Visibility="{Binding ShowSecondaryText, Converter={StaticResource BoolToVisibilityConverter}}"/>
                                                 <Border Grid.Column="1"
-                                                        Grid.Row="2"
-                                                        Margin="0,3,0,0"
-                                                        Padding="6,2"
+                                                        Grid.Row="1"
+                                                        Margin="0,2,0,0"
+                                                        Padding="6,1"
                                                         Background="{DynamicResource ModPathBg}"
                                                         BorderBrush="{DynamicResource ModPathBorder}"
                                                         BorderThickness="1"
@@ -501,7 +493,7 @@
                                                         Visibility="{Binding ShowSubtitleBadge, Converter={StaticResource BoolToVisibilityConverter}}">
                                                     <TextBlock Text="{Binding Subtitle}" FontSize="10" Foreground="{DynamicResource ModPathFg}" TextTrimming="CharacterEllipsis"/>
                                                 </Border>
-                                                <StackPanel Grid.Column="2" Grid.RowSpan="3" Margin="10,0,0,0" HorizontalAlignment="Right">
+                                                <StackPanel Grid.Column="2" Grid.RowSpan="2" Margin="8,0,0,0" HorizontalAlignment="Right" VerticalAlignment="Center">
                                                     <Border Padding="6,1"
                                                             Background="{DynamicResource ModTagBg}"
                                                             BorderBrush="{DynamicResource ModTagBorder}"
@@ -512,7 +504,6 @@
                                                         <TextBlock Text="{Binding Mod.Tag}" FontSize="10" Foreground="{DynamicResource ModTagFg}" TextAlignment="Right"/>
                                                     </Border>
                                                     <TextBlock Text="{Binding Mod.AuthorDisplay}"
-                                                               Margin="0,5,0,0"
                                                                FontSize="10"
                                                                Foreground="{DynamicResource MutedFg}"
                                                                TextAlignment="Right"
@@ -521,9 +512,9 @@
                                                     <Button Content="{Binding DataContext.Loc[Common.Open], RelativeSource={RelativeSource AncestorType=Window}}"
                                                             Command="{Binding DataContext.OpenModFolderCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                             CommandParameter="{Binding Mod}"
-                                                            Padding="8,2"
+                                                            Padding="7,1"
                                                             Width="62"
-                                                            Margin="0,8,0,0"
+                                                            Margin="0,4,0,0"
                                                             HorizontalAlignment="Right"
                                                             Visibility="{Binding IsModNode, Converter={StaticResource BoolToVisibilityConverter}}"/>
                                                 </StackPanel>
@@ -609,7 +600,6 @@
                                                  Content="{Binding Loc[Mods.RenameByFolder]}"
                                                  Command="{Binding RenameSelectedModToFolderNameCommand}"/>
                                      </Grid>
-                                     <TextBlock Text="{Binding Loc[Field.AliasHint]}" Margin="0,4,0,0" FontSize="10" Foreground="{DynamicResource HintFg}" TextWrapping="Wrap"/>
                                  </StackPanel>
 
                                  <TextBlock Grid.Row="2" Grid.Column="0" Text="{Binding Loc[Field.Tag]}" HorizontalAlignment="Right" Margin="0,0,8,6" VerticalAlignment="Top"/>
