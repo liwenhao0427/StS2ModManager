@@ -303,7 +303,7 @@ public partial class MainViewModel : ObservableObject
             _modService.SaveSettings();
         }
 
-        if (_pathService.IsValidGamePath(normalizedPath))
+        if (_pathService.IsValidGamePathForDetection(normalizedPath))
         {
             GamePathStatus = L("Path.Status.Valid");
             RefreshModSources();
@@ -312,6 +312,10 @@ public partial class MainViewModel : ObservableObject
             return;
         }
 
+        ModSources.Clear();
+        ToolMods.Clear();
+        ToolModTreeRoots.Clear();
+        GameMods.Clear();
         GamePathStatus = L("Path.Status.Invalid");
     }
 
@@ -631,10 +635,17 @@ public partial class MainViewModel : ObservableObject
                 return;
             }
 
-            if (!_pathService.IsValidGamePath(selectedFolder))
+            if (!_pathService.IsValidGamePathForDetection(selectedFolder))
             {
-                MessageBox.Show(L("Msg.InvalidGameDirectory"), L("Dialog.Title.Tip"), MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
+                var confirm = MessageBox.Show(
+                    L("Msg.InvalidGameDirectoryConfirm"),
+                    L("Dialog.Title.Confirm"),
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Warning);
+                if (confirm != MessageBoxResult.Yes)
+                {
+                    return;
+                }
             }
 
             if (!ContainsDetectedPath(selectedFolder))
