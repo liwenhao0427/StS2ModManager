@@ -1,5 +1,7 @@
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Controls;
+using StS2ModManager.Models;
 using StS2ModManager.ViewModels;
 
 namespace StS2ModManager;
@@ -28,5 +30,10 @@ public partial class MainWindow : Window
 
         Vm?.AddNewTagCommand.Execute(null);
         e.Handled = true;
+    }
+
+    private void OnToolModTreeSelectedItemChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
+    {
+        Vm?.SelectToolTreeNode(e.NewValue as ModTreeNode);
     }
 }

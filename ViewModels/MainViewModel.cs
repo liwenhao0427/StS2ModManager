@@ -40,6 +40,9 @@ public partial class MainViewModel : ObservableObject
     private ObservableCollection<ModInfo> _toolMods = new();
 
     [ObservableProperty]
+    private ObservableCollection<ModTreeNode> _toolModTreeRoots = new();
+
+    [ObservableProperty]
     private ModInfo? _selectedToolMod;
 
     [ObservableProperty]
@@ -318,6 +321,17 @@ public partial class MainViewModel : ObservableObject
         }
 
         ClearSelectedModContext();
+    }
+
+    public void SelectToolTreeNode(ModTreeNode? node)
+    {
+        if (node?.Mod == null)
+        {
+            SelectedToolMod = null;
+            return;
+        }
+
+        SelectedToolMod = node.Mod;
     }
 
     partial void OnSelectedGameModChanged(ModInfo? value)
@@ -914,6 +928,92 @@ public partial class MainViewModel : ObservableObject
         UpdateTagFilters();
         RefreshToolModsFilter();
         RefreshGameMods();
+    }
+
+    [RelayCommand]
+    private void RenameSelectedModToFolderName()
+    {
+        if (string.IsNullOrWhiteSpace(SelectedModFolderPath))
+        {
+            MessageBox.Show(L("Msg.SelectModFirst"), L("Dialog.Title.Tip"), MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        var meta = _modService.LoadModMetaByPath(SelectedModFolderPath, SelectedModFolderName);
+        meta.Name = SelectedModFolderName;
+        if (!_modService.SaveModMetaByPath(SelectedModFolderPath, SelectedModFolderName, meta))
+        {
+            MessageBox.Show(L("Msg.ModMetaSaveFailed"), L("Dialog.Title.Error"), MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
+
+        ReloadModMetaAndViews();
+        StatusMessage = L("Status.ModNameUpdatedByFolder");
+    }
+
+    [RelayCommand]
+    private void RenameModNamesBySourceDirectory()
+    {
+        var sourceOptions = ToolMods
+            .GroupBy(x => x.SourcePath, StringComparer.OrdinalIgnoreCase)
+            .Select(g => new SyncSourceOption
+            {
+                SourcePath = g.Key,
+                DisplayName = $"{g.First().SourceName} ({g.Count()})",
+                IsSelected = true
+            })
+            .OrderBy(x => x.DisplayName, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (sourceOptions.Count == 0)
+        {
+            MessageBox.Show(L("Msg.NoModForDirectoryRename"), L("Dialog.Title.Tip"), MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        var sourceDialog = new SyncSourceSelectWindow(sourceOptions)
+        {
+            Owner = Application.Current?.MainWindow
+        };
+        sourceDialog.SetTexts(
+            L("Dialog.RenameByFolder.Title"),
+            L("Dialog.RenameByFolder.Header"),
+            L("Dialog.RenameByFolder.Hint"),
+            L("Common.SelectAll"),
+            L("Common.UnselectAll"),
+            L("Common.Confirm"),
+            L("Common.Cancel"),
+            L("Msg.DirectoryRenameSourceRequired"),
+            L("Dialog.Title.Tip"));
+        if (sourceDialog.ShowDialog() != true)
+        {
+            return;
+        }
+
+        var selectedSourcePaths = sourceDialog.SourceOptions
+            .Where(x => x.IsSelected)
+            .Select(x => x.SourcePath)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var successCount = 0;
+        foreach (var mod in ToolMods.Where(x => selectedSourcePaths.Contains(x.SourcePath)))
+        {
+            var meta = _modService.LoadModMetaByPath(mod.FolderPath, mod.FolderName);
+            meta.Name = mod.FolderName;
+            if (_modService.SaveModMetaByPath(mod.FolderPath, mod.FolderName, meta))
+            {
+                successCount++;
+            }
+        }
+
+        RefreshToolMods();
+        RefreshGameMods();
+        StatusMessage = F("Status.ModNameBatchUpdatedByFolder", successCount);
+        MessageBox.Show(
+            Application.Current?.MainWindow,
+            F("Msg.DirectoryRenameDone", successCount),
+            L("Dialog.Title.Success"),
+            MessageBoxButton.OK,
+            MessageBoxImage.Information);
     }
 
     private void ApplyMetaToUiInputs(ModMetaInfo meta, string folderName)
@@ -1891,6 +1991,7 @@ public partial class MainViewModel : ObservableObject
     private void RefreshToolModsFilter()
     {
         FilteredToolModsView.Refresh();
+        RebuildToolModTree();
     }
 
     private void UpdateTagFilters()
@@ -2089,6 +2190,86 @@ public partial class MainViewModel : ObservableObject
         mainWindow.Topmost = true;
         mainWindow.Topmost = false;
         mainWindow.Focus();
+    }
+
+    private void RebuildToolModTree()
+    {
+        ToolModTreeRoots.Clear();
+
+        var sourceRoots = FilteredToolModsView.Cast<ModInfo>()
+            .GroupBy(x => x.SourcePath, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(g => g.First().SourceName, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(g => g.Key, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var sourceGroup in sourceRoots)
+        {
+            var first = sourceGroup.First();
+            var root = new ModTreeNode
+            {
+                Title = first.SourceName,
+                Subtitle = first.SourcePath,
+                NodeKey = first.SourcePath,
+                ShowSubtitleBadge = true,
+                ShowInlineSubtitle = false,
+                IsExpanded = true
+            };
+
+            foreach (var mod in sourceGroup
+                         .OrderByDescending(x => x.IsEnabled)
+                         .ThenBy(x => x.RelativeFolderPath, StringComparer.OrdinalIgnoreCase)
+                         .ThenBy(x => x.DisplayName, StringComparer.OrdinalIgnoreCase))
+            {
+                AddModToTree(root, mod);
+            }
+
+            ToolModTreeRoots.Add(root);
+        }
+    }
+
+    private static void AddModToTree(ModTreeNode root, ModInfo mod)
+    {
+        var segments = mod.RelativeFolderPath
+            .Split(['\\', '/'], StringSplitOptions.RemoveEmptyEntries);
+        if (segments.Length == 0)
+        {
+            root.Children.Add(CreateModLeaf(mod));
+            return;
+        }
+
+        var current = root;
+        for (var i = 0; i < segments.Length - 1; i++)
+        {
+            var segment = segments[i];
+            var nextKey = $"{current.NodeKey}/{segment}";
+            var next = current.Children.FirstOrDefault(x => !x.IsModNode && string.Equals(x.NodeKey, nextKey, StringComparison.OrdinalIgnoreCase));
+            if (next == null)
+            {
+                next = new ModTreeNode
+                {
+                    Title = segment,
+                    NodeKey = nextKey,
+                    IsExpanded = true
+                };
+                current.Children.Add(next);
+            }
+
+            current = next;
+        }
+
+        current.Children.Add(CreateModLeaf(mod));
+    }
+
+    private static ModTreeNode CreateModLeaf(ModInfo mod)
+    {
+        return new ModTreeNode
+        {
+            Title = mod.DisplayName,
+            Subtitle = mod.AuthorDisplay,
+            NodeKey = mod.ModKey,
+            Mod = mod,
+            ShowInlineSubtitle = true,
+            IsExpanded = false
+        };
     }
 
     private static string NormalizeGithubRepo(string? url)

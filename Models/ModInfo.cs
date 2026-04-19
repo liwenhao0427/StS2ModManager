@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using System.IO;
 
 namespace StS2ModManager.Models;
 
@@ -57,6 +58,10 @@ public partial class ModInfo : ObservableObject
     public string UpdatedDisplay => ModifiedTime.ToString("yyyy-MM-dd HH:mm");
 
     public string VersionDisplay => string.IsNullOrWhiteSpace(Version) ? "-" : Version;
+
+    public string RelativeFolderPath => string.IsNullOrWhiteSpace(SourcePath) || string.IsNullOrWhiteSpace(FolderPath)
+        ? FolderName
+        : Path.GetRelativePath(SourcePath, FolderPath);
 
     public string SizeDisplay => Size switch
     {

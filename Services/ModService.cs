@@ -879,43 +879,22 @@ public class ModService
     public List<ModInfo> BuildUnifiedMods(List<ModInfo> sourceMods, List<ModInfo> gameMods)
     {
         var result = new List<ModInfo>();
-        var gameMap = gameMods
-            .GroupBy(x => x.FolderName, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
-
-        var sourceGroups = sourceMods
-            .GroupBy(x => x.FolderName, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
-
-        var folderNames = gameMap.Keys
-            .Union(sourceGroups.Keys, StringComparer.OrdinalIgnoreCase)
-            .ToList();
-
-        foreach (var folderName in folderNames)
+        foreach (var gameMod in gameMods)
         {
-            if (gameMap.TryGetValue(folderName, out var gameMod))
-            {
-                gameMod.IsEnabled = true;
-                result.Add(gameMod);
-                continue;
-            }
+            gameMod.IsEnabled = true;
+            result.Add(gameMod);
+        }
 
-            if (!sourceGroups.TryGetValue(folderName, out var candidates) || candidates.Count == 0)
-            {
-                continue;
-            }
-
-            foreach (var mod in DeduplicateByContent(candidates))
-            {
-                mod.IsEnabled = false;
-                result.Add(mod);
-            }
+        foreach (var sourceMod in sourceMods)
+        {
+            sourceMod.IsEnabled = false;
+            result.Add(sourceMod);
         }
 
         return result
             .OrderBy(x => x.DisplayName, StringComparer.OrdinalIgnoreCase)
             .ThenBy(x => x.SourceName, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(x => x.SourcePath, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(x => x.RelativeFolderPath, StringComparer.OrdinalIgnoreCase)
             .ToList();
     }
 
@@ -927,8 +906,26 @@ public class ModService
             return mods;
         }
 
-        foreach (var folder in Directory.GetDirectories(source.Path, "*", SearchOption.TopDirectoryOnly))
+        var modFolders = Directory.GetFiles(source.Path, "*.json", SearchOption.AllDirectories)
+            .Where(path => !string.Equals(Path.GetFileName(path), LegacyMetaFileName, StringComparison.OrdinalIgnoreCase))
+            .Select(path => Path.GetDirectoryName(path))
+            .Where(path => !string.IsNullOrWhiteSpace(path))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        foreach (var folder in modFolders!)
         {
+            if (string.IsNullOrWhiteSpace(folder) || !Directory.Exists(folder))
+            {
+                continue;
+            }
+
+            if (!TryFindMatchingJson(folder, out var metadataFilePath, out _))
+            {
+                continue;
+            }
+
             var folderName = Path.GetFileName(folder);
             if (string.IsNullOrWhiteSpace(folderName))
             {
@@ -951,7 +948,7 @@ public class ModService
                 ModKey = modKey,
                 FolderName = folderName,
                 FolderPath = folder,
-                MetadataFilePath = Path.Combine(folder, $"{ResolveModBaseName(folder, folderName)}.json"),
+                MetadataFilePath = metadataFilePath,
                 SourcePath = source.Path,
                 SourceName = source.Name,
                 DisplayName = string.IsNullOrWhiteSpace(meta.Name) ? folderName : meta.Name,
@@ -1163,57 +1160,46 @@ public class ModService
             .Sum(file => new FileInfo(file).Length);
     }
 
-    private static List<ModInfo> DeduplicateByContent(List<ModInfo> mods)
+    private static bool TryFindMatchingJson(string folderPath, out string metadataFilePath, out string modBaseName)
     {
-        var hashSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var result = new List<ModInfo>();
-        foreach (var mod in mods.OrderBy(x => x.SourceName, StringComparer.OrdinalIgnoreCase).ThenBy(x => x.SourcePath, StringComparer.OrdinalIgnoreCase))
-        {
-            var hash = ComputeDirectoryContentHash(mod.FolderPath);
-            if (hashSet.Add(hash))
-            {
-                result.Add(mod);
-            }
-        }
+        metadataFilePath = string.Empty;
+        modBaseName = string.Empty;
 
-        return result;
-    }
-
-    private static string ComputeDirectoryContentHash(string folderPath)
-    {
         if (!Directory.Exists(folderPath))
         {
-            return string.Empty;
+            return false;
         }
 
-        try
+        var candidates = Directory.GetFiles(folderPath, "*.json", SearchOption.AllDirectories)
+            .Where(path => !string.Equals(Path.GetFileName(path), LegacyMetaFileName, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (candidates.Count == 0)
         {
-            using var hasher = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
-            var files = Directory
-                .GetFiles(folderPath, "*", SearchOption.AllDirectories)
-                .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
-                .ToList();
+            return false;
+        }
 
-            foreach (var file in files)
+        var preferred = candidates
+            .Select(path => new
             {
-                var relativePath = Path.GetRelativePath(folderPath, file).Replace('\\', '/');
-                var pathBytes = Encoding.UTF8.GetBytes(relativePath.ToLowerInvariant());
-                hasher.AppendData(pathBytes);
+                Path = path,
+                BaseName = Path.GetFileNameWithoutExtension(path)
+            })
+            .Where(x => !string.IsNullOrWhiteSpace(x.BaseName))
+            .OrderByDescending(x => string.Equals(x.BaseName, Path.GetFileName(folderPath), StringComparison.OrdinalIgnoreCase))
+            .ThenBy(x => x.Path, StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault(x =>
+                Directory.GetFiles(folderPath, $"{x.BaseName}.dll", SearchOption.AllDirectories).Length > 0
+                || Directory.GetFiles(folderPath, $"{x.BaseName}.pck", SearchOption.AllDirectories).Length > 0);
 
-                var fileInfo = new FileInfo(file);
-                var lengthBytes = BitConverter.GetBytes(fileInfo.Length);
-                hasher.AppendData(lengthBytes);
-
-                var fileHash = SHA256.HashData(File.ReadAllBytes(file));
-                hasher.AppendData(fileHash);
-            }
-
-            return Convert.ToHexString(hasher.GetHashAndReset());
-        }
-        catch
+        if (preferred == null)
         {
-            return $"fallback:{folderPath}";
+            return false;
         }
+
+        metadataFilePath = preferred.Path;
+        modBaseName = preferred.BaseName;
+        return true;
     }
 
     private static void CopyDirectory(string source, string destination)
