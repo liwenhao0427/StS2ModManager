@@ -45,8 +45,42 @@ public class ModService
         return $"folder:{folderName.Trim()}";
     }
 
+    private void EnsureDefaultAlias(string modKey, string originalName, string folderName)
+    {
+        var normalizedFolderName = folderName?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(normalizedFolderName))
+        {
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(modKey) && _settings.ModAliases.TryGetValue(modKey, out var modAlias) && !string.IsNullOrWhiteSpace(modAlias))
+        {
+            return;
+        }
+
+        var normalizedOriginalName = originalName?.Trim() ?? string.Empty;
+        if (!string.IsNullOrWhiteSpace(normalizedOriginalName))
+        {
+            var nameKey = BuildAliasNameKey(normalizedOriginalName);
+            if (_settings.ModAliases.TryGetValue(nameKey, out var nameAlias) && !string.IsNullOrWhiteSpace(nameAlias))
+            {
+                return;
+            }
+        }
+
+        var folderKey = BuildAliasFolderKey(normalizedFolderName);
+        if (_settings.ModAliases.TryGetValue(folderKey, out var folderAlias) && !string.IsNullOrWhiteSpace(folderAlias))
+        {
+            return;
+        }
+
+        SetModAlias(modKey, normalizedFolderName, normalizedOriginalName, normalizedFolderName);
+    }
+
     public string GetModAlias(string modKey, string originalName, string folderName)
     {
+        EnsureDefaultAlias(modKey, originalName, folderName);
+
         if (!string.IsNullOrWhiteSpace(modKey)
             && _settings.ModAliases.TryGetValue(modKey, out var modKeyAlias)
             && !string.IsNullOrWhiteSpace(modKeyAlias))
