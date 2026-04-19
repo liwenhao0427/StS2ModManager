@@ -782,7 +782,8 @@ public partial class MainViewModel : ObservableObject
             ? new List<ModInfo>()
             : _modService.ScanGameMods(SelectedPath);
         var mods = _modService.BuildUnifiedMods(sourceMods, gameMods)
-            .OrderByDescending(x => x.IsEnabled)
+            .OrderByDescending(x => x.IsFromGameDir)
+            .ThenByDescending(x => x.IsEnabled)
             .ThenBy(x => x.DisplayName, StringComparer.OrdinalIgnoreCase)
             .ThenBy(x => x.SourceName, StringComparer.OrdinalIgnoreCase)
             .ToList();
@@ -2202,7 +2203,8 @@ public partial class MainViewModel : ObservableObject
 
         var sourceRoots = FilteredToolModsView.Cast<ModInfo>()
             .GroupBy(x => x.SourcePath, StringComparer.OrdinalIgnoreCase)
-            .OrderBy(g => g.First().SourceName, StringComparer.OrdinalIgnoreCase)
+            .OrderByDescending(g => g.Any(x => x.IsFromGameDir))
+            .ThenBy(g => g.First().SourceName, StringComparer.OrdinalIgnoreCase)
             .ThenBy(g => g.Key, StringComparer.OrdinalIgnoreCase);
 
         foreach (var sourceGroup in sourceRoots)

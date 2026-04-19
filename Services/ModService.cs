@@ -910,6 +910,11 @@ public class ModService
     public List<ModInfo> BuildUnifiedMods(List<ModInfo> sourceMods, List<ModInfo> gameMods)
     {
         var result = new List<ModInfo>();
+        var activeNames = gameMods
+            .Select(x => x.OriginalName?.Trim())
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
         foreach (var gameMod in gameMods)
         {
             gameMod.IsEnabled = true;
@@ -918,12 +923,19 @@ public class ModService
 
         foreach (var sourceMod in sourceMods)
         {
+            if (!string.IsNullOrWhiteSpace(sourceMod.OriginalName)
+                && activeNames.Contains(sourceMod.OriginalName.Trim()))
+            {
+                continue;
+            }
+
             sourceMod.IsEnabled = false;
             result.Add(sourceMod);
         }
 
         return result
-            .OrderBy(x => x.DisplayName, StringComparer.OrdinalIgnoreCase)
+            .OrderByDescending(x => x.IsFromGameDir)
+            .ThenBy(x => x.DisplayName, StringComparer.OrdinalIgnoreCase)
             .ThenBy(x => x.SourceName, StringComparer.OrdinalIgnoreCase)
             .ThenBy(x => x.RelativeFolderPath, StringComparer.OrdinalIgnoreCase)
             .ToList();
