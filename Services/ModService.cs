@@ -1039,7 +1039,8 @@ public class ModService
 
             var lastWrite = Directory.GetLastWriteTime(folder);
             var size = CalculateDirectorySize(folder);
-            var modKey = $"{source.Path}|{folderName}";
+            var relativeFolderPath = Path.GetRelativePath(source.Path, folder);
+            var modKey = $"{source.Path}|{relativeFolderPath}";
             var meta = LoadModMeta(folder, folderName, hasPck, hasDll);
             var originalName = string.IsNullOrWhiteSpace(meta.Name) ? folderName : meta.Name;
             var aliasName = GetModAlias(modKey, originalName, folderName);
@@ -1125,7 +1126,12 @@ public class ModService
                 continue;
             }
 
-            var targetPath = Path.Combine(gameModsPath, mod.FolderName);
+            var targetPath = Path.Combine(gameModsPath, mod.RelativeFolderPath);
+            var targetParent = Path.GetDirectoryName(targetPath);
+            if (!string.IsNullOrWhiteSpace(targetParent))
+            {
+                Directory.CreateDirectory(targetParent);
+            }
             if (Directory.Exists(targetPath))
             {
                 Directory.Delete(targetPath, true);
@@ -1147,7 +1153,12 @@ public class ModService
         }
 
         Directory.CreateDirectory(gameModsPath);
-        var targetPath = Path.Combine(gameModsPath, mod.FolderName);
+        var targetPath = Path.Combine(gameModsPath, mod.RelativeFolderPath);
+        var targetParent = Path.GetDirectoryName(targetPath);
+        if (!string.IsNullOrWhiteSpace(targetParent))
+        {
+            Directory.CreateDirectory(targetParent);
+        }
         if (Directory.Exists(targetPath))
         {
             Directory.Delete(targetPath, true);
@@ -1192,15 +1203,19 @@ public class ModService
             return false;
         }
 
-        var sourceFolder = Path.Combine(gameModsPath, mod.FolderName);
+        var sourceFolder = Path.Combine(gameModsPath, mod.RelativeFolderPath);
         if (!Directory.Exists(sourceFolder))
         {
             return false;
         }
 
         var pendingPath = _pathService.GetGamePendingModsDir(gamePath);
-        Directory.CreateDirectory(pendingPath);
-        var targetFolder = Path.Combine(pendingPath, mod.FolderName);
+        var targetFolder = Path.Combine(pendingPath, mod.RelativeFolderPath);
+        var targetParent = Path.GetDirectoryName(targetFolder);
+        if (!string.IsNullOrWhiteSpace(targetParent))
+        {
+            Directory.CreateDirectory(targetParent);
+        }
         if (Directory.Exists(targetFolder))
         {
             Directory.Delete(targetFolder, true);
@@ -1210,9 +1225,9 @@ public class ModService
         return true;
     }
 
-    public bool MoveGameModToPendingByFolderName(string gamePath, string folderName)
+    public bool MoveGameModToPendingByRelativePath(string gamePath, string relativeFolderPath)
     {
-        if (string.IsNullOrWhiteSpace(folderName))
+        if (string.IsNullOrWhiteSpace(relativeFolderPath))
         {
             return false;
         }
@@ -1223,15 +1238,19 @@ public class ModService
             return false;
         }
 
-        var sourceFolder = Path.Combine(gameModsPath, folderName);
+        var sourceFolder = Path.Combine(gameModsPath, relativeFolderPath);
         if (!Directory.Exists(sourceFolder))
         {
             return false;
         }
 
         var pendingPath = _pathService.GetGamePendingModsDir(gamePath);
-        Directory.CreateDirectory(pendingPath);
-        var targetFolder = Path.Combine(pendingPath, folderName);
+        var targetFolder = Path.Combine(pendingPath, relativeFolderPath);
+        var targetParent = Path.GetDirectoryName(targetFolder);
+        if (!string.IsNullOrWhiteSpace(targetParent))
+        {
+            Directory.CreateDirectory(targetParent);
+        }
         if (Directory.Exists(targetFolder))
         {
             Directory.Delete(targetFolder, true);

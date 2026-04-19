@@ -1147,7 +1147,7 @@ public partial class MainViewModel : ObservableObject
             }
             else
             {
-                if (!_modService.MoveGameModToPendingByFolderName(SelectedPath, mod.FolderName))
+                if (!_modService.MoveGameModToPendingByRelativePath(SelectedPath, mod.RelativeFolderPath))
                 {
                     mod.IsEnabled = true;
                     MessageBox.Show(L("Msg.ModDisableFailed"), L("Dialog.Title.Tip"), MessageBoxButton.OK, MessageBoxImage.Warning);
@@ -1209,7 +1209,7 @@ public partial class MainViewModel : ObservableObject
 
         var toEnable = ToolMods
             .Where(x => !x.IsEnabled)
-            .GroupBy(x => x.FolderName, StringComparer.OrdinalIgnoreCase)
+            .GroupBy(x => x.RelativeFolderPath, StringComparer.OrdinalIgnoreCase)
             .Select(g => g.First())
             .ToList();
         foreach (var mod in toEnable)
@@ -1233,12 +1233,12 @@ public partial class MainViewModel : ObservableObject
 
         var toDisable = ToolMods
             .Where(x => x.IsEnabled)
-            .GroupBy(x => x.FolderName, StringComparer.OrdinalIgnoreCase)
+            .GroupBy(x => x.RelativeFolderPath, StringComparer.OrdinalIgnoreCase)
             .Select(g => g.First())
             .ToList();
         foreach (var mod in toDisable)
         {
-            _modService.MoveGameModToPendingByFolderName(SelectedPath, mod.FolderName);
+            _modService.MoveGameModToPendingByRelativePath(SelectedPath, mod.RelativeFolderPath);
         }
 
         RefreshModSources();
