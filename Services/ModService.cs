@@ -12,6 +12,7 @@ namespace StS2ModManager.Services;
 public class ModService
 {
     private const string LegacyMetaFileName = "modinfo.json";
+    private const string ManifestFileName = "mod_manifest.json";
     private static readonly JsonSerializerOptions JsonIndentedOptions = new()
     {
         WriteIndented = true
@@ -261,7 +262,7 @@ public class ModService
             };
 
             var modBaseName = ResolveModBaseName(folderPath, folderName);
-            var sameNameMetaFile = Path.Combine(folderPath, $"{modBaseName}.json");
+            var sameNameMetaFile = ResolveMetadataFilePath(folderPath, modBaseName);
             var legacyMetaFile = Path.Combine(folderPath, LegacyMetaFileName);
             var hasPck = Directory.GetFiles(folderPath, "*.pck", SearchOption.AllDirectories).Length > 0;
             var hasDll = Directory.GetFiles(folderPath, "*.dll", SearchOption.AllDirectories).Length > 0;
@@ -318,7 +319,7 @@ public class ModService
         }
 
         ModSameNameMeta? extractedMeta = TryExtractSameNameMetaFromDll(dllPath, modBaseName);
-        sameNameJsonPath = Path.Combine(folderPath, $"{modBaseName}.json");
+        sameNameJsonPath = ResolveMetadataFilePath(folderPath, modBaseName);
         if (extractedMeta == null)
         {
             extractedMeta = TryReadSameNameMeta(sameNameJsonPath);
@@ -326,7 +327,7 @@ public class ModService
 
         if (extractedMeta == null)
         {
-            extractedMeta = TryReadManifestMeta(Path.Combine(folderPath, "mod_manifest.json"), modBaseName, folderPath);
+            extractedMeta = TryReadManifestMeta(Path.Combine(folderPath, ManifestFileName), modBaseName, folderPath);
         }
 
         if (extractedMeta == null)
@@ -398,7 +399,7 @@ public class ModService
             }
 
             var modBaseName = ResolveModBaseName(mod.FolderPath, mod.FolderName);
-            var sameNameMetaFile = Path.Combine(mod.FolderPath, $"{modBaseName}.json");
+            var sameNameMetaFile = ResolveMetadataFilePath(mod.FolderPath, modBaseName);
 
             mod.OriginalName = string.IsNullOrWhiteSpace(normalizedMeta.Name) ? mod.FolderName : normalizedMeta.Name;
             mod.DisplayName = mod.OriginalName;
@@ -425,7 +426,7 @@ public class ModService
     {
         var legacyMetaFile = Path.Combine(modFolderPath, LegacyMetaFileName);
         var modBaseName = ResolveModBaseName(modFolderPath, folderName);
-        var modSameNameMetaFile = Path.Combine(modFolderPath, $"{modBaseName}.json");
+        var modSameNameMetaFile = ResolveMetadataFilePath(modFolderPath, modBaseName);
 
         var legacyMeta = TryReadCustomMeta(legacyMetaFile, folderName);
         var sameNameMeta = TryReadSameNameMeta(modSameNameMetaFile);
@@ -454,6 +455,12 @@ public class ModService
         if (!Directory.Exists(modFolderPath))
         {
             return string.IsNullOrWhiteSpace(folderName) ? "UnknownMod" : folderName.Trim();
+        }
+
+        var manifestPath = Path.Combine(modFolderPath, ManifestFileName);
+        if (TryReadManifestId(manifestPath, out var manifestId))
+        {
+            return manifestId;
         }
 
         var dllNames = Directory
@@ -492,6 +499,57 @@ public class ModService
         }
 
         return string.IsNullOrWhiteSpace(folderName) ? "UnknownMod" : folderName.Trim();
+    }
+
+    private static string ResolveMetadataFilePath(string modFolderPath, string modBaseName)
+    {
+        var manifestPath = Path.Combine(modFolderPath, ManifestFileName);
+        return File.Exists(manifestPath)
+            ? manifestPath
+            : Path.Combine(modFolderPath, $"{modBaseName}.json");
+    }
+
+    private static bool TryReadManifestId(string manifestPath, out string id)
+    {
+        id = string.Empty;
+        if (!File.Exists(manifestPath))
+        {
+            return false;
+        }
+
+        try
+        {
+            var json = File.ReadAllText(manifestPath, Encoding.UTF8);
+            using var doc = JsonDocument.Parse(json);
+            if (doc.RootElement.ValueKind != JsonValueKind.Object)
+            {
+                return false;
+            }
+
+            id = ReadStringProperty(doc.RootElement, "id")?.Trim() ?? string.Empty;
+            return !string.IsNullOrWhiteSpace(id);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static bool HasMatchingModAsset(string folderPath, string modBaseName)
+    {
+        if (string.IsNullOrWhiteSpace(modBaseName))
+        {
+            return false;
+        }
+
+        return Directory.GetFiles(folderPath, "*", SearchOption.AllDirectories)
+            .Any(path =>
+            {
+                var extension = Path.GetExtension(path);
+                return (string.Equals(extension, ".dll", StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(extension, ".pck", StringComparison.OrdinalIgnoreCase))
+                       && string.Equals(Path.GetFileNameWithoutExtension(path), modBaseName, StringComparison.OrdinalIgnoreCase);
+            });
     }
 
     private static string? ResolvePrimaryDllPath(string modFolderPath, string modBaseName)
@@ -1332,6 +1390,15 @@ public class ModService
         if (candidates.Count == 0)
         {
             return false;
+        }
+
+        var manifestPath = Path.Combine(folderPath, ManifestFileName);
+        if (TryReadManifestId(manifestPath, out var manifestId)
+            && HasMatchingModAsset(folderPath, manifestId))
+        {
+            metadataFilePath = manifestPath;
+            modBaseName = manifestId;
+            return true;
         }
 
         var preferred = candidates
